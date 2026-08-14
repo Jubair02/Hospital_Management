@@ -21,6 +21,13 @@ export interface User {
   isActive: boolean;
   /** Three-state account status (Phase 10). `isActive` stays in sync with it. */
   status?: UserStatus;
+  /**
+   * Present only on portal logins, and only in the user list: the Patient
+   * record this account signs in as. The reference is stored the other way
+   * round, so the server resolves it for these rows rather than the client
+   * having to search patients by email to find the same person.
+   */
+  patient?: { id: string; patientId: string };
   createdAt: string;
   updatedAt: string;
   fullName?: string;

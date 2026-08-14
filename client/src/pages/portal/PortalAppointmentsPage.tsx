@@ -134,7 +134,7 @@ export default function PortalAppointmentsPage() {
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-56">
+        <div className="max-w-56">
           <Select
             aria-label="Filter by status"
             value={status}
@@ -146,25 +146,24 @@ export default function PortalAppointmentsPage() {
             placeholder="All statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={appointments}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No appointments"
-              description="Book your first visit with a doctor."
-              action={
-                <Link to="/patient/appointments/new">
-                  <Button size="sm">Book appointment</Button>
-                </Link>
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={appointments}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No appointments"
+            description="Book your first visit with a doctor."
+            action={
+              <Link to="/patient/appointments/new">
+                <Button size="sm">Book appointment</Button>
+              </Link>
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -172,8 +171,8 @@ export default function PortalAppointmentsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
 
       <ConfirmDialog
         open={cancelling !== null}

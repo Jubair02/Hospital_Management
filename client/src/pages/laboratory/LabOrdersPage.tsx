@@ -13,6 +13,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { LabOrderStatusBadge, PriorityBadge } from '../../components/laboratory/LabBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 const STATUS_OPTIONS = [
   { value: 'ordered', label: 'Ordered' },
@@ -120,15 +121,15 @@ export default function LabOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Lab orders</h1>
-        <p className="mt-1 text-sm text-slate-500">Orders placed by doctors, newest first.</p>
-      </div>
+      <PageHeader
+        title="Lab orders"
+        subtitle="Orders placed by doctors, newest first."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input
             placeholder="Search order ID or patient…"
             value={searchInput}
@@ -169,20 +170,19 @@ export default function LabOrdersPage() {
             aria-label="Filter by date"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={orders}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No lab orders found"
-              description="Orders appear here when doctors request tests from a consultation."
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={orders}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No lab orders found"
+            description="Orders appear here when doctors request tests from a consultation."
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -190,8 +190,8 @@ export default function LabOrdersPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

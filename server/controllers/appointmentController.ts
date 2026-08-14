@@ -16,6 +16,7 @@ import {
 import { notifyDoctor, notifyPatient } from '../services/notificationService.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 const POPULATE = [
   { path: 'patientId', select: 'patientId firstName lastName phone status dateOfBirth' },
@@ -27,7 +28,6 @@ const POPULATE = [
 const queryString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
 
-const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

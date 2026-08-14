@@ -14,6 +14,7 @@ import PatientTable from '../../components/patients/PatientTable';
 import PatientFilters, {
   type PatientFilterValues,
 } from '../../components/patients/PatientFilters';
+import PageHeader from '../../components/ui/PageHeader';
 
 const NO_FILTERS: PatientFilterValues = { gender: '', bloodGroup: '', status: '' };
 
@@ -78,21 +79,19 @@ export default function PatientsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Patients</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {canCreatePatient(role)
-              ? 'Register new patients and manage existing records.'
-              : 'Look up patient records.'}
-          </p>
-        </div>
-        {canCreatePatient(role) && (
-          <Link to={`/${role}/patients/new`}>
-            <Button>Register patient</Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Patients"
+        subtitle={canCreatePatient(role) ? 'Register new patients and manage existing records.' : 'Look up patient records.'}
+        actions={
+          <>
+            {canCreatePatient(role) && (
+              <Link to={`/${role}/patients/new`}>
+                <Button>Register patient</Button>
+              </Link>
+            )}
+          </>
+        }
+      />
 
       {flash && <Alert tone="success">{flash}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}

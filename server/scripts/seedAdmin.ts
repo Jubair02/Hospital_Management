@@ -1,12 +1,64 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import connectDB from '../config/db.js';
+import LabCategory from '../models/LabCategory.js';
 import User from '../models/User.js';
+import { nextLabCategoryId } from '../services/laboratoryService.js';
 
 /**
- * Creates the first admin account from environment variables.
+ * Reference data every laboratory needs before its catalog can be built.
+ *
+ * A lab test cannot be created without a category, so an install with none
+ * leaves the "Add test" form with an empty required dropdown and no way
+ * forward from that screen. These are the standard bench divisions; an
+ * administrator can rename, extend, or retire them afterwards.
+ */
+const LAB_CATEGORIES: { name: string; description: string }[] = [
+  { name: 'Hematology', description: 'Blood counts, coagulation, and cell morphology.' },
+  {
+    name: 'Clinical chemistry',
+    description: 'Metabolic panels, enzymes, lipids, and electrolytes.',
+  },
+  {
+    name: 'Microbiology',
+    description: 'Cultures, sensitivities, and organism identification.',
+  },
+  {
+    name: 'Immunology and serology',
+    description: 'Antibody, antigen, and infectious disease screens.',
+  },
+  { name: 'Urinalysis', description: 'Routine and microscopic examination of urine.' },
+  { name: 'Histopathology', description: 'Tissue specimens and cytology.' },
+];
+
+/**
+ * Seeds a category only when nothing of that name is already on file, so the
+ * script stays safe to re-run and never overwrites an edited description.
+ */
+const seedLabCategories = async (): Promise<void> => {
+  const created: string[] = [];
+
+  for (const { name, description } of LAB_CATEGORIES) {
+    const exists = await LabCategory.findOne({ name });
+    if (exists) continue;
+
+    await LabCategory.create({ categoryId: await nextLabCategoryId(), name, description });
+    created.push(name);
+  }
+
+  if (created.length === 0) {
+    console.log('Lab categories already present — nothing to do.');
+  } else {
+    console.log(`Lab categories created: ${created.join(', ')}`);
+  }
+};
+
+/**
+ * Bootstraps a fresh installation: the first admin account from environment
+ * variables, plus the reference data the app cannot function without.
+ *
  * Usage:
- *   npm run seed:admin             — create if missing (idempotent)
+ *   npm run seed:admin             — create what is missing (idempotent)
  *   npm run seed:admin -- --reset  — also reset the password of an
  *                                    existing admin to ADMIN_PASSWORD
  *
@@ -67,6 +119,8 @@ const seedAdmin = async (): Promise<void> => {
       });
       console.log(`Admin account created: ${admin.email}`);
     }
+
+    await seedLabCategories();
   } catch (err) {
     console.error(`Seed failed: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 1;

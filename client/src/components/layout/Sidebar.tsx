@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useSettings from '../../hooks/useSettings';
-import { DASHBOARD_PATHS, ROLE_LABELS, ROLES } from '../../utils/constants';
+import { DASHBOARD_PATHS, ROLES } from '../../utils/constants';
 import Icon, { LogoMark, type IconName } from '../ui/icons';
 
 interface NavItem {
@@ -10,8 +10,6 @@ interface NavItem {
   icon: IconName;
   /** Match the exact path only — used by parent links such as /admin. */
   end?: boolean;
-  /** Count shown as a pill on the right of the row. */
-  badge?: number;
 }
 
 interface NavGroup {
@@ -23,7 +21,6 @@ interface NavGroup {
 interface SidebarProps {
   open: boolean;
   collapsed: boolean;
-  unreadCount: number;
   onClose: () => void;
   onToggleCollapsed: () => void;
 }
@@ -33,7 +30,7 @@ const nav = (
   to: string,
   label: string,
   icon: IconName,
-  extra?: Pick<NavItem, 'end' | 'badge'>
+  extra?: Pick<NavItem, 'end'>
 ): NavItem => ({ to, label, icon, ...extra });
 
 const ROW =
@@ -58,11 +55,10 @@ const ROW_ACTIVE = 'bg-accent-600 text-white shadow-sm';
 export default function Sidebar({
   open,
   collapsed,
-  unreadCount,
   onClose,
   onToggleCollapsed,
 }: SidebarProps) {
-  const { user, role, logout } = useAuth();
+  const { role } = useAuth();
   const { hospitalName } = useSettings();
 
   const isClinical =
@@ -93,11 +89,9 @@ export default function Sidebar({
     },
     {
       label: 'Account',
-      items: [
-        nav('/patient/billing', 'Billing', 'cash'),
-        nav('/patient/notifications', 'Notifications', 'bell', { badge: unreadCount }),
-        nav('/patient/profile', 'My profile', 'users'),
-      ],
+      // Notifications are reached from the bell in the header, which every
+      // page carries — a second entry here would be the same inbox twice.
+      items: [nav('/patient/billing', 'Billing', 'cash'), nav('/patient/profile', 'My profile', 'users')],
     },
   ];
 
@@ -171,10 +165,6 @@ export default function Sidebar({
           ? [nav('/reports/laboratory', 'Reports', 'reports')]
           : []),
         ...(role === ROLES.NURSE ? [nav('/reports/inpatient', 'Reports', 'reports')] : []),
-        // Staff inbox; the patient portal has its own notifications page.
-        ...(role !== ROLES.PATIENT
-          ? [nav('/notifications', 'Notifications', 'bell', { badge: unreadCount })]
-          : []),
       ],
     },
     {
@@ -197,7 +187,6 @@ export default function Sidebar({
 
   /** Text that gives way to icons only once the rail is collapsed. */
   const labelClass = collapsed ? 'truncate lg:sr-only' : 'truncate';
-  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (
     <>
@@ -280,19 +269,6 @@ export default function Sidebar({
                     >
                       <Icon name={item.icon} className="h-5 w-5 shrink-0" />
                       <span className={`flex-1 ${labelClass}`}>{item.label}</span>
-
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span
-                          className={`ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[0.6875rem] font-semibold leading-none text-white ${
-                            collapsed
-                              ? 'lg:absolute lg:right-2.5 lg:top-2 lg:ml-0 lg:h-2 lg:w-2 lg:min-w-0 lg:overflow-hidden lg:p-0 lg:text-transparent'
-                              : ''
-                          }`}
-                        >
-                          {item.badge > 99 ? '99+' : item.badge}
-                          <span className="sr-only"> unread</span>
-                        </span>
-                      )}
                     </NavLink>
                   </li>
                 ))}
@@ -301,37 +277,11 @@ export default function Sidebar({
           ))}
         </nav>
 
-        {/* Current user, collapse control, sign out */}
-        <div className="shrink-0 border-t border-white/[0.07] p-3">
-          <div
-            className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
-              collapsed ? 'lg:justify-center lg:px-0' : ''
-            }`}
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.09] text-xs font-semibold text-brand-100 ring-1 ring-inset ring-white/10">
-              {initials || '—'}
-            </span>
-            <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
-              <p className="truncate text-sm font-medium leading-tight text-white">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="truncate text-[0.6875rem] text-slate-400">
-                {role ? ROLE_LABELS[role] : user?.email}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={logout}
-            className={`${ROW} ${ROW_IDLE} mt-1 w-full ${
-              collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : ''
-            }`}
-          >
-            <Icon name="logout" className="h-5 w-5 shrink-0" />
-            <span className={labelClass}>Log out</span>
-          </button>
-
+        {/* Collapse control. The account and sign-out live in the header menu,
+            which every page carries — the rail holds places to go, nothing
+            else. Desktop-only, hence the hidden wrapper: the drawer would
+            otherwise end in an empty bordered strip on mobile. */}
+        <div className="hidden shrink-0 border-t border-white/[0.07] p-3 lg:block">
           <button
             type="button"
             onClick={onToggleCollapsed}

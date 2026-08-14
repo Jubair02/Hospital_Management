@@ -4,11 +4,11 @@ import { getDispensings } from '../../services/pharmacyService';
 import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/date';
 import type { DispensingRecord, Pagination as PaginationInfo } from '../../types';
-import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
 import Button from '../../components/ui/Button';
 import Table, { type Column } from '../../components/ui/Table';
 import Pagination from '../../components/ui/Pagination';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function DispensingHistoryPage() {
   const [records, setRecords] = useState<DispensingRecord[]>([]);
@@ -90,21 +90,19 @@ export default function DispensingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Dispensing history</h1>
-        <p className="mt-1 text-sm text-slate-500">Every dispensing event, newest first.</p>
-      </div>
+      <PageHeader
+        title="Dispensing history"
+        subtitle="Every dispensing event, newest first."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <Table
-          columns={columns}
-          rows={records}
-          loading={loading}
-          emptyState={<p className="text-center text-sm text-slate-500">Nothing dispensed yet.</p>}
-        />
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={records}
+        loading={loading}
+        emptyState={<p className="text-center text-sm text-slate-500">Nothing dispensed yet.</p>}
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -112,8 +110,8 @@ export default function DispensingHistoryPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

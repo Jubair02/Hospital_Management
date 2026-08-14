@@ -9,6 +9,7 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Select, { type SelectOption } from '../../components/ui/Select';
 import Spinner from '../../components/ui/Spinner';
+import PageHeader from '../../components/ui/PageHeader';
 
 const CURRENCY_OPTIONS: SelectOption[] = [
   { value: 'USD', label: 'USD — US Dollar' },
@@ -122,12 +123,10 @@ export default function SystemSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">System settings</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Stored in the database and applied across the application. Every change is audited.
-        </p>
-      </div>
+      <PageHeader
+        title="System settings"
+        subtitle="Stored in the database and applied across the application. Every change is audited."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}

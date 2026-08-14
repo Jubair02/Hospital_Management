@@ -9,6 +9,7 @@ import Alert from '../../components/ui/Alert';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
 import Pagination from '../../components/ui/Pagination';
+import PageHeader from '../../components/ui/PageHeader';
 
 const TYPE_TONES: Record<StockTransaction['type'], { label: string; tone: BadgeTone }> = {
   stock_in: { label: 'Stock in', tone: 'green' },
@@ -99,17 +100,15 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Stock transactions</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          The immutable ledger of every inventory movement.
-        </p>
-      </div>
+      <PageHeader
+        title="Stock transactions"
+        subtitle="The immutable ledger of every inventory movement."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-xs">
+        <div className="max-w-xs">
           <Select
             aria-label="Filter by type"
             value={type}
@@ -121,15 +120,14 @@ export default function TransactionsPage() {
             placeholder="All types"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={transactions}
-          loading={loading}
-          emptyState={<p className="text-center text-sm text-slate-500">No transactions yet.</p>}
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={transactions}
+        loading={loading}
+        emptyState={<p className="text-center text-sm text-slate-500">No transactions yet.</p>}
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -137,8 +135,8 @@ export default function TransactionsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

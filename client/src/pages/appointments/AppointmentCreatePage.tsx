@@ -5,6 +5,7 @@ import type { CreateAppointmentPayload } from '../../types';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
 import useAuth from '../../hooks/useAuth';
 import { appointmentsListPath } from '../../utils/permissions';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function AppointmentCreatePage() {
   const navigate = useNavigate();
@@ -23,12 +24,10 @@ export default function AppointmentCreatePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Book appointment</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Pick the patient, doctor, and an available time slot.
-        </p>
-      </div>
+      <PageHeader
+        title="Book appointment"
+        subtitle="Pick the patient, doctor, and an available time slot."
+      />
 
       <AppointmentForm
         onSubmit={handleSubmit}

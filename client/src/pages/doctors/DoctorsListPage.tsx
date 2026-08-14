@@ -16,6 +16,7 @@ import DoctorTable from '../../components/doctors/DoctorTable';
 import DoctorFilters, {
   type DoctorFilterValues,
 } from '../../components/doctors/DoctorFilters';
+import PageHeader from '../../components/ui/PageHeader';
 
 const NO_FILTERS: DoctorFilterValues = { departmentId: '', specialization: '', status: '' };
 
@@ -119,19 +120,19 @@ export default function DoctorsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Doctors</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {manage ? 'Manage doctor profiles and availability.' : 'Hospital doctor directory.'}
-          </p>
-        </div>
-        {manage && (
-          <Link to="/admin/doctors/new">
-            <Button>Add doctor</Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Doctors"
+        subtitle={manage ? 'Manage doctor profiles and availability.' : 'Hospital doctor directory.'}
+        actions={
+          <>
+            {manage && (
+              <Link to="/admin/doctors/new">
+                <Button>Add doctor</Button>
+              </Link>
+            )}
+          </>
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}

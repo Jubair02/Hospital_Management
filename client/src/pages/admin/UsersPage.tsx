@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { deleteUser, fetchUsers, updateUserStatus } from '../../services/userService';
 import { getErrorMessage } from '../../services/api';
@@ -22,15 +23,29 @@ import UserFormModal from '../../components/users/UserFormModal';
 const PAGE_SIZE = 10;
 
 /**
- * Staff roles only. `ROLE_LABELS` also carries `patient`, and offering it here
- * pulled portal logins onto a screen that manages staff accounts — the server
- * excludes them from this list by default for the same reason, and refuses to
- * delete them because a Patient record still points at them. Portal access is
- * issued and retired on the patient record instead.
+ * Staff roles only, and only on the staff tab. `ROLE_LABELS` also carries
+ * `patient`, and offering it as one role among six mixed portal logins into a
+ * list of staff accounts — the server excludes them from an unfiltered query
+ * for the same reason. Patient logins get their own tab instead, because what
+ * you do with one is different: no role to assign, no deletion (a Patient
+ * record still points at it), and the person's name lives on that record
+ * rather than on the login.
  */
 const ROLE_FILTER_OPTIONS: SelectOption[] = Object.entries(STAFF_ROLE_LABELS).map(
   ([value, label]) => ({ value, label: label as string })
 );
+
+/**
+ * Which population of accounts is on screen. The server takes this as the
+ * `role` query: absent means "every staff role", `patient` means portal
+ * logins only.
+ */
+type Audience = 'staff' | 'patient';
+
+const AUDIENCE_TABS: { value: Audience; label: string }[] = [
+  { value: 'staff', label: 'Staff' },
+  { value: 'patient', label: 'Patients' },
+];
 
 /**
  * Status is the filter reached for most often, so it is a segmented control
@@ -87,10 +102,13 @@ export default function UsersPage() {
     total: 0,
   });
   const [counts, setCounts] = useState<Counts | null>(null);
+  /** Total on the tab that is not open, so its badge reads before you click. */
+  const [otherTotal, setOtherTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
+  const [audience, setAudience] = useState<Audience>('staff');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -115,21 +133,29 @@ export default function UsersPage() {
       // rows the query actually matched is reported in the toolbar instead.
       // Each comes from `pagination.total` with `limit: 1`, so no extra page
       // of staff is downloaded to produce a figure.
-      const [data, active, inactive, suspended] = await Promise.all([
+      // `role: 'patient'` is the server's opt-in for portal logins; leaving it
+      // off is what makes a query mean "staff". The status counts follow the
+      // tab, so they never describe a population that is not on screen.
+      const scope = audience === 'patient' ? 'patient' : undefined;
+
+      const [data, active, inactive, suspended, other] = await Promise.all([
         fetchUsers({
           page,
           limit: PAGE_SIZE,
           search: search || undefined,
-          role: roleFilter || undefined,
+          role: audience === 'patient' ? 'patient' : roleFilter || undefined,
           status: statusFilter || undefined,
         }),
-        fetchUsers({ limit: 1, status: 'active' }),
-        fetchUsers({ limit: 1, status: 'inactive' }),
-        fetchUsers({ limit: 1, status: 'suspended' }),
+        fetchUsers({ limit: 1, role: scope, status: 'active' }),
+        fetchUsers({ limit: 1, role: scope, status: 'inactive' }),
+        fetchUsers({ limit: 1, role: scope, status: 'suspended' }),
+        // The other tab's total, for its badge.
+        fetchUsers({ limit: 1, role: audience === 'patient' ? undefined : 'patient' }),
       ]);
 
       setUsers(data.users);
       setPagination(data.pagination);
+      setOtherTotal(other.pagination.total);
       setCounts({
         active: active.pagination.total,
         inactive: inactive.pagination.total,
@@ -138,11 +164,16 @@ export default function UsersPage() {
           active.pagination.total + inactive.pagination.total + suspended.pagination.total,
       });
     } catch (err) {
-      setError(getErrorMessage(err, 'Unable to load users.'));
+      setError(
+        getErrorMessage(
+          err,
+          audience === 'patient' ? 'Unable to load patient logins.' : 'Unable to load users.'
+        )
+      );
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter, statusFilter]);
+  }, [audience, page, search, roleFilter, statusFilter]);
 
   useEffect(() => {
     load();
@@ -230,10 +261,30 @@ export default function UsersPage() {
     }
   };
 
+  /**
+   * Filters describe the tab that was open when they were set, so they are
+   * dropped on the way out — a role filter would be meaningless against
+   * patient logins, and a search for a staff surname would land the reader on
+   * an empty patient tab that looks broken.
+   */
+  const switchAudience = (next: Audience) => {
+    if (next === audience) return;
+    setAudience(next);
+    setPage(1);
+    setRoleFilter('');
+    setStatusFilter('');
+    setSearchInput('');
+    setSearch('');
+    setCounts(null);
+    setOtherTotal(null);
+  };
+
+  const isPatients = audience === 'patient';
+
   const columns: Column<User>[] = [
     {
       key: 'name',
-      header: 'Staff member',
+      header: isPatients ? 'Patient' : 'Staff member',
       render: (u) => (
         <div className="flex items-center gap-3">
           {/* Squircle monogram: gives every row a fixed anchor to scan down,
@@ -252,16 +303,38 @@ export default function UsersPage() {
                 <span className="ml-1.5 text-xs font-normal text-slate-400">(you)</span>
               )}
             </p>
-            <p className="truncate text-xs text-slate-500">{u.email}</p>
+            <p className="truncate text-xs text-slate-500">
+              {u.email}
+              {/* The account is only half the person. Their record holds the
+                  clinical side, and this is the one place the two are shown
+                  together, so it is also the place to offer the crossing. */}
+              {u.patient && (
+                <>
+                  <span className="text-slate-300"> · </span>
+                  <Link
+                    to={`/patients/${u.patient.id}`}
+                    className="font-medium text-brand-700 transition-colors hover:text-brand-800 hover:underline"
+                  >
+                    {u.patient.patientId}
+                  </Link>
+                </>
+              )}
+            </p>
           </div>
         </div>
       ),
     },
-    {
-      key: 'role',
-      header: 'Role',
-      render: (u) => <Badge tone={ROLE_TONES[u.role]}>{ROLE_LABELS[u.role]}</Badge>,
-    },
+    // Every row on the patients tab carries the same role, so a column of
+    // identical badges would be a column of noise.
+    ...(isPatients
+      ? []
+      : [
+          {
+            key: 'role',
+            header: 'Role',
+            render: (u: User) => <Badge tone={ROLE_TONES[u.role]}>{ROLE_LABELS[u.role]}</Badge>,
+          } satisfies Column<User>,
+        ]),
     {
       key: 'phone',
       header: 'Phone',
@@ -287,7 +360,7 @@ export default function UsersPage() {
     },
     {
       key: 'createdAt',
-      header: 'Added',
+      header: isPatients ? 'Access given' : 'Added',
       render: (u) => <span className="text-slate-500">{formatDate(u.createdAt)}</span>,
     },
     {
@@ -300,16 +373,23 @@ export default function UsersPage() {
 
         return (
           <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setEditingUser(u);
-                setFormOpen(true);
-              }}
-            >
-              Edit
-            </Button>
+            {/* A patient's name and contact details belong to their Patient
+                record, and the portal login is only a mirror of them. Editing
+                them here would leave the two disagreeing, so this tab governs
+                the one thing that is genuinely the account's own: whether it
+                can sign in. */}
+            {!isPatients && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingUser(u);
+                  setFormOpen(true);
+                }}
+              >
+                Edit
+              </Button>
+            )}
 
             {/* An admin cannot act on their own account — the server refuses
                 it too, so the controls are absent rather than merely failing. */}
@@ -364,11 +444,17 @@ export default function UsersPage() {
       <PageHeader
         eyebrow="Accounts & access"
         title="Users"
-        subtitle="Staff logins, the role each one carries, and whether it can currently sign in."
+        subtitle={
+          isPatients
+            ? 'Portal logins issued to patients, and whether each one can currently sign in.'
+            : 'Staff logins, the role each one carries, and whether it can currently sign in.'
+        }
         meta={
           counts ? (
             <>
-              <Badge tone="slate">{counts.total.toLocaleString()} accounts</Badge>
+              <Badge tone="slate">
+                {counts.total.toLocaleString()} {isPatients ? 'logins' : 'accounts'}
+              </Badge>
               <Badge tone="green">{counts.active.toLocaleString()} active</Badge>
               {counts.suspended > 0 && (
                 <Badge tone="red">{counts.suspended.toLocaleString()} suspended</Badge>
@@ -379,17 +465,61 @@ export default function UsersPage() {
           )
         }
         actions={
-          <Button
-            onClick={() => {
-              setEditingUser(null);
-              setFormOpen(true);
-            }}
-          >
-            <Icon name="plus" className="h-4 w-4" />
-            Add user
-          </Button>
+          // Nothing to add here on the patients tab: a portal login is issued
+          // against an existing Patient record, never created standalone.
+          !isPatients && (
+            <Button
+              onClick={() => {
+                setEditingUser(null);
+                setFormOpen(true);
+              }}
+            >
+              <Icon name="plus" className="h-4 w-4" />
+              Add user
+            </Button>
+          )
         }
       />
+
+      {/* Two populations, not one list with a filter on it. Underlined tabs
+          rather than another pill group, so this reads as a level above the
+          status control inside the toolbar rather than a second one beside
+          it. `aria-pressed` matches how that control is built. */}
+      <div className="border-b border-line">
+        <div className="-mb-px flex gap-1" role="group" aria-label="Account type">
+          {AUDIENCE_TABS.map((tab) => {
+            const selected = audience === tab.value;
+            const badge = selected ? counts?.total : otherTotal;
+
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => switchAudience(tab.value)}
+                className={`flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium
+                  transition-colors duration-150
+                  ${
+                    selected
+                      ? 'border-brand-600 text-brand-700'
+                      : 'border-transparent text-slate-500 hover:border-line-strong hover:text-slate-800'
+                  }`}
+              >
+                {tab.label}
+                {badge !== undefined && badge !== null && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+                      selected ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {badge.toLocaleString()}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
@@ -442,7 +572,7 @@ export default function UsersPage() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:shrink-0">
             <Input
-              placeholder="Search name or email"
+              placeholder={isPatients ? 'Search patient name or email' : 'Search name or email'}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               aria-label="Search users"
@@ -461,25 +591,48 @@ export default function UsersPage() {
                 ) : null
               }
             />
-            <Select
-              aria-label="Filter by role"
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value);
-                setPage(1);
-              }}
-              options={ROLE_FILTER_OPTIONS}
-              placeholder="All roles"
-              className="sm:w-44"
-            />
+            {!isPatients && (
+              <Select
+                aria-label="Filter by role"
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  setPage(1);
+                }}
+                options={ROLE_FILTER_OPTIONS}
+                placeholder="All roles"
+                className="sm:w-44"
+              />
+            )}
           </div>
         </div>
+
+        {/* Where a patient login comes from. Without this the tab reads as
+            somewhere you ought to be able to create one, and there is no
+            control here that does. */}
+        {isPatients && !hasFilters && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-slate-50/60 px-4 py-2.5 text-xs text-slate-500">
+            <span>Access is issued on a patient record, then managed here.</span>
+            <Link
+              to="/admin/patients"
+              className="font-semibold text-brand-700 transition-colors hover:text-brand-800"
+            >
+              Open patients
+            </Link>
+          </div>
+        )}
 
         {hasFilters && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-slate-50/60 px-4 py-2.5 text-xs text-slate-500">
             <span>
               {pagination.total.toLocaleString()}{' '}
-              {pagination.total === 1 ? 'account matches' : 'accounts match'}
+              {isPatients
+                ? pagination.total === 1
+                  ? 'login matches'
+                  : 'logins match'
+                : pagination.total === 1
+                  ? 'account matches'
+                  : 'accounts match'}
             </span>
             <span className="text-slate-300" aria-hidden="true">
               ·
@@ -501,17 +654,33 @@ export default function UsersPage() {
         loading={loading}
         emptyState={
           <EmptyState
-            title={hasFilters ? 'No accounts match these filters' : 'No staff accounts yet'}
+            title={
+              hasFilters
+                ? `No ${isPatients ? 'logins' : 'accounts'} match these filters`
+                : isPatients
+                  ? 'No patient has portal access yet'
+                  : 'No staff accounts yet'
+            }
             description={
               hasFilters
-                ? 'Try a different search term, or clear the filters to see every account.'
-                : 'Add the first staff account to give someone access to the portal.'
+                ? `Try a different search term, or clear the filters to see every ${
+                    isPatients ? 'login' : 'account'
+                  }.`
+                : isPatients
+                  ? 'Portal access is given on a patient record, and the login appears here once it exists.'
+                  : 'Add the first staff account to give someone access to the portal.'
             }
             action={
               hasFilters ? (
                 <Button variant="secondary" size="sm" onClick={clearFilters}>
                   Clear filters
                 </Button>
+              ) : isPatients ? (
+                <Link to="/admin/patients">
+                  <Button variant="secondary" size="sm">
+                    Go to patients
+                  </Button>
+                </Link>
               ) : (
                 <Button
                   size="sm"

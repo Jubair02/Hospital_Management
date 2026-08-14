@@ -15,6 +15,7 @@ import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function AdmissionCreatePage() {
   const navigate = useNavigate();
@@ -106,13 +107,10 @@ export default function AdmissionCreatePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Admit patient</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          The bed is claimed atomically — if someone takes it first, you'll be asked to pick
-          another.
-        </p>
-      </div>
+      <PageHeader
+        title="Admit patient"
+        subtitle="The bed is claimed atomically — if someone takes it first, you'll be asked to pick another."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 

@@ -16,6 +16,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import Select from '../../components/ui/Select';
 import Spinner from '../../components/ui/Spinner';
+import PageHeader from '../../components/ui/PageHeader';
 
 const TYPE_META: Record<NotificationType, { label: string; tone: BadgeTone }> = {
   appointment: { label: 'Appointment', tone: 'blue' },
@@ -120,17 +121,15 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {unread > 0 ? `${unread} unread` : 'You are all caught up.'}
-          </p>
-        </div>
-        <Button variant="secondary" loading={busy} disabled={unread === 0} onClick={handleMarkAll}>
-          Mark all as read
-        </Button>
-      </div>
+      <PageHeader
+        title="Notifications"
+        subtitle={unread > 0 ? `${unread} unread` : 'You are all caught up.'}
+        actions={
+          <Button variant="secondary" loading={busy} disabled={unread === 0} onClick={handleMarkAll}>
+            Mark all as read
+          </Button>
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 

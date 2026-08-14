@@ -6,6 +6,7 @@ import type { BillingStats } from '../../types';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
+import PageHeader from '../../components/ui/PageHeader';
 
 const CARDS: Array<{
   key: keyof BillingStats;
@@ -43,23 +44,23 @@ export default function BillingDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Billing</h1>
-          <p className="mt-1 text-sm text-slate-500">Invoices, payments, and revenue.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/billing/invoices/new">
-            <Button>New invoice</Button>
-          </Link>
-          <Link to="/billing/invoices">
-            <Button variant="secondary">Invoices</Button>
-          </Link>
-          <Link to="/billing/payments">
-            <Button variant="ghost">Payments</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Billing"
+        subtitle="Invoices, payments, and revenue."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link to="/billing/invoices/new">
+              <Button>New invoice</Button>
+            </Link>
+            <Link to="/billing/invoices">
+              <Button variant="secondary">Invoices</Button>
+            </Link>
+            <Link to="/billing/payments">
+              <Button variant="ghost">Payments</Button>
+            </Link>
+          </div>
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 

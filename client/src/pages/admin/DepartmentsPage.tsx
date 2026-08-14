@@ -6,13 +6,13 @@ import {
 import { getErrorMessage } from '../../services/api';
 import type { Department } from '../../types';
 import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import DepartmentFormModal from '../../components/departments/DepartmentFormModal';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -124,44 +124,40 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Departments</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Hospital departments used for doctor assignment and booking.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-        >
-          Add department
-        </Button>
-      </div>
+      <PageHeader
+        title="Departments"
+        subtitle="Hospital departments used for doctor assignment and booking."
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            Add department
+          </Button>
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <Table
-          columns={columns}
-          rows={departments}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No departments yet"
-              description="Add departments like Cardiology or Pediatrics so doctors can be assigned to them."
-              action={
-                <Button size="sm" onClick={() => setFormOpen(true)}>
-                  Add department
-                </Button>
-              }
-            />
-          }
-        />
-      </Card>
+      <Table
+        columns={columns}
+        rows={departments}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No departments yet"
+            description="Add departments like Cardiology or Pediatrics so doctors can be assigned to them."
+            action={
+              <Button size="sm" onClick={() => setFormOpen(true)}>
+                Add department
+              </Button>
+            }
+          />
+        }
+      />
 
       <DepartmentFormModal
         open={formOpen}

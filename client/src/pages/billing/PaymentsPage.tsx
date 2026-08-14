@@ -16,6 +16,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { PaymentRecordBadge, methodLabel } from '../../components/billing/BillingBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<BillingPayment[]>([]);
@@ -118,15 +119,15 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Payments</h1>
-        <p className="mt-1 text-sm text-slate-500">The money ledger — payments and refunds.</p>
-      </div>
+      <PageHeader
+        title="Payments"
+        subtitle="The money ledger — payments and refunds."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input
             placeholder="Search payment ID or patient…"
             value={searchInput}
@@ -168,17 +169,16 @@ export default function PaymentsPage() {
             aria-label="Filter by date"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={payments}
-          loading={loading}
-          emptyState={
-            <EmptyState title="No payments found" description="Payments appear here once recorded." />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={payments}
+        loading={loading}
+        emptyState={
+          <EmptyState title="No payments found" description="Payments appear here once recorded." />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -186,8 +186,8 @@ export default function PaymentsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

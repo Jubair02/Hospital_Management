@@ -4,7 +4,11 @@ import request, { type Test as SupertestTest } from 'supertest';
 import createApp from '../app.js';
 import type { UserDocument } from '../models/User.js';
 import { setupTestDB, createAdmin, loginAs, ADMIN, DOCTOR } from './helpers.js';
-import { createDepartment, createDoctorViaApi as createDoctorProfile } from './phase3Helpers.js';
+import {
+  createActivePatient,
+  createDepartment,
+  createDoctorViaApi as createDoctorProfile,
+} from './phase3Helpers.js';
 
 interface UserJson {
   _id: string;
@@ -112,6 +116,96 @@ describe('GET /api/users (admin)', () => {
 
     expect(res.body.data.users).toHaveLength(1);
     expect((res.body.data.users as UserJson[])[0]!.isActive).toBe(false);
+  });
+
+  /**
+   * The Patients tab in user management is built entirely on this contract:
+   * portal logins stay out of the default list, and `role=patient` is the
+   * opt-in that surfaces them. Both halves are asserted, because either one
+   * silently changing would break that screen without failing a build.
+   */
+  it('hides patient portal logins by default and returns them for role=patient', async () => {
+    await createDoctorViaApi();
+    await createAdmin({
+      email: 'portal.list@test.local',
+      password: 'PortalPass123!',
+      role: 'patient',
+      firstName: 'Amara',
+      lastName: 'Nwosu',
+    });
+
+    const staff = await asAdmin(request(app).get('/api/users')).expect(200);
+    const staffRoles = (staff.body.data.users as UserJson[]).map((u) => u.role);
+    expect(staffRoles).not.toContain('patient');
+    expect(staff.body.data.pagination.total).toBe(2); // admin + doctor
+
+    const patients = await asAdmin(
+      request(app).get('/api/users').query({ role: 'patient' })
+    ).expect(200);
+
+    expect(patients.body.data.pagination.total).toBe(1);
+    const listed = (patients.body.data.users as UserJson[])[0]!;
+    expect(listed.role).toBe('patient');
+    expect(listed.email).toBe('portal.list@test.local');
+    expect(listed).not.toHaveProperty('password');
+  });
+
+  /**
+   * A Patient points at its login and never the reverse, so without this the
+   * Patients tab can list an account with no route back to the person. The
+   * list resolves the link for portal rows only.
+   */
+  it('attaches the linked patient record to portal login rows', async () => {
+    const patient = await createActivePatient({ firstName: 'Amara', lastName: 'Sesay' });
+
+    await asAdmin(request(app).post(`/api/patients/${patient._id}/portal-account`))
+      .send({ email: 'amara.portal@test.local', password: 'PortalPass123!' })
+      .expect(201);
+
+    const res = await asAdmin(
+      request(app).get('/api/users').query({ role: 'patient' })
+    ).expect(200);
+
+    const row = (res.body.data.users as Array<UserJson & { patient?: unknown }>)[0]!;
+    expect(row.patient).toEqual({
+      id: String(patient._id),
+      patientId: patient.patientId,
+    });
+
+    // Staff rows carry no such field — the lookup is scoped, not global.
+    const staff = await asAdmin(request(app).get('/api/users')).expect(200);
+    for (const u of staff.body.data.users as Array<UserJson & { patient?: unknown }>) {
+      expect(u.patient).toBeUndefined();
+    }
+  });
+
+  /**
+   * The tab's status counts are four separate `role=patient` queries, so the
+   * two filters have to compose rather than one overriding the other.
+   */
+  it('composes role=patient with a status filter', async () => {
+    const portal = await createAdmin({
+      email: 'portal.status@test.local',
+      password: 'PortalPass123!',
+      role: 'patient',
+      firstName: 'Tomas',
+      lastName: 'Ndiaye',
+    });
+
+    // Deactivating the login is the one action the Patients tab offers.
+    await asAdmin(request(app).patch(`/api/users/${portal._id}/status`))
+      .send({ status: 'inactive' })
+      .expect(200);
+
+    const inactive = await asAdmin(
+      request(app).get('/api/users').query({ role: 'patient', status: 'inactive' })
+    ).expect(200);
+    expect(inactive.body.data.pagination.total).toBe(1);
+
+    const active = await asAdmin(
+      request(app).get('/api/users').query({ role: 'patient', status: 'active' })
+    ).expect(200);
+    expect(active.body.data.pagination.total).toBe(0);
   });
 });
 
@@ -269,7 +363,17 @@ describe('DELETE /api/users/:id (admin)', () => {
   });
 
   it('returns 404 for a missing id and 400 for a malformed one', async () => {
-    await asAdmin(request(app).delete('/api/users/507f1f77bcf86cd799439011')).expect(404);
+    const missing = await asAdmin(
+      request(app).delete('/api/users/507f1f77bcf86cd799439011')
+    ).expect(404);
+
+    // The status alone cannot tell "no such user" apart from "no such route":
+    // an unregistered DELETE falls through to the app's notFound handler and
+    // also answers 404. Asserting which handler replied is what makes this a
+    // test of the delete endpoint rather than of the 404 middleware.
+    expect(missing.body.message).toBe('User not found');
+    expect(missing.body.message).not.toMatch(/Route not found/);
+
     await asAdmin(request(app).delete('/api/users/not-an-id')).expect(400);
   });
 });

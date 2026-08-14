@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { DASHBOARD_PATHS, HOSPITAL_NAME } from '../utils/constants';
 import { getErrorMessage } from '../services/api';
+import { peekLogoutReason } from '../utils/session';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Alert from '../components/ui/Alert';
@@ -27,6 +28,9 @@ export default function LoginPage() {
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Read once on mount. A session that timed out lands here having already
+  // recorded why, whether it ended in a live tab or was refused on reload.
+  const [timedOut] = useState(() => peekLogoutReason() === 'inactivity');
 
   if (loading) return <FullPageSpinner label="Loading" />;
 
@@ -181,6 +185,11 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit} noValidate className="mt-7 space-y-5">
+              {timedOut && !submitError && (
+                <Alert tone="info">
+                  You were signed out after 6 hours without activity. Log in to continue.
+                </Alert>
+              )}
               {submitError && <Alert tone="error">{submitError}</Alert>}
 
               <Input

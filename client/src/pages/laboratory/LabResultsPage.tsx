@@ -12,6 +12,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { LabResultStatusBadge } from '../../components/laboratory/LabBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function LabResultsPage() {
   const [results, setResults] = useState<LabResult[]>([]);
@@ -96,17 +97,15 @@ export default function LabResultsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Results</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Result entry and verification happen on the order page.
-        </p>
-      </div>
+      <PageHeader
+        title="Results"
+        subtitle="Result entry and verification happen on the order page."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-xs">
+        <div className="max-w-xs">
           <Select
             aria-label="Filter by status"
             value={status}
@@ -123,15 +122,14 @@ export default function LabResultsPage() {
             placeholder="All statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={results}
-          loading={loading}
-          emptyState={<EmptyState title="No results found" description="Nothing here yet." />}
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={results}
+        loading={loading}
+        emptyState={<EmptyState title="No results found" description="Nothing here yet." />}
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -139,8 +137,8 @@ export default function LabResultsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

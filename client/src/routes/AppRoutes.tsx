@@ -42,6 +42,7 @@ import PharmacyPrescriptionDetailPage from '../pages/pharmacy/PharmacyPrescripti
 import DispensingHistoryPage from '../pages/pharmacy/DispensingHistoryPage';
 import LaboratoryDashboardPage from '../pages/laboratory/LaboratoryDashboardPage';
 import LabTestsPage from '../pages/laboratory/LabTestsPage';
+import LabCategoriesPage from '../pages/laboratory/LabCategoriesPage';
 import LabOrdersPage from '../pages/laboratory/LabOrdersPage';
 import LabOrderDetailsPage from '../pages/laboratory/LabOrderDetailsPage';
 import LabSamplesPage from '../pages/laboratory/LabSamplesPage';
@@ -188,6 +189,12 @@ export default function AppRoutes() {
           <Route element={<RoleRoute allow={[ROLES.ADMIN, ROLES.LAB_TECHNICIAN]} />}>
             <Route path="/laboratory" element={<LaboratoryDashboardPage />} />
             <Route path="/laboratory/samples" element={<LabSamplesPage />} />
+          </Route>
+
+          {/* Test categories — admin only, matching who may write them
+              server-side (POST/PATCH /laboratory/categories) */}
+          <Route element={<RoleRoute allow={[ROLES.ADMIN]} />}>
+            <Route path="/laboratory/categories" element={<LabCategoriesPage />} />
           </Route>
 
           {/* Lab catalog — doctors may browse it too */}

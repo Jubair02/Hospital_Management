@@ -1,31 +1,38 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  createCategory,
-  getCategories,
-  updateCategory,
-  updateCategoryStatus,
-} from '../../services/pharmacyService';
+  createLabCategory,
+  getLabCategories,
+  updateLabCategory,
+  updateLabCategoryStatus,
+} from '../../services/laboratoryService';
 import { getErrorMessage } from '../../services/api';
-import type { MedicineCategory } from '../../types';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
+import type { LabCategory } from '../../types';
 import Alert from '../../components/ui/Alert';
-import Input from '../../components/ui/Input';
-import Textarea from '../../components/ui/Textarea';
-import Modal from '../../components/ui/Modal';
-import Table, { type Column } from '../../components/ui/Table';
+import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
+import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
+import Table, { type Column } from '../../components/ui/Table';
+import Textarea from '../../components/ui/Textarea';
 
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<MedicineCategory[]>([]);
+/**
+ * Lab category management — the groups every test in the catalog belongs to.
+ *
+ * A test cannot be created without one, so with no categories the test form is
+ * unusable. Deactivating a category is the way to retire it: the test form only
+ * offers active ones, while tests already filed under it keep their history.
+ */
+export default function LabCategoriesPage() {
+  const [categories, setCategories] = useState<LabCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<MedicineCategory | null>(null);
+  const [editing, setEditing] = useState<LabCategory | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [formError, setFormError] = useState('');
@@ -35,9 +42,9 @@ export default function CategoriesPage() {
     setLoading(true);
     setError('');
     try {
-      setCategories(await getCategories());
+      setCategories(await getLabCategories());
     } catch (err) {
-      setError(getErrorMessage(err, 'Unable to load categories.'));
+      setError(getErrorMessage(err, 'Unable to load lab categories.'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +59,7 @@ export default function CategoriesPage() {
     setTimeout(() => setNotice(''), 4000);
   };
 
-  const openForm = (category: MedicineCategory | null) => {
+  const openForm = (category: LabCategory | null) => {
     setEditing(category);
     setName(category?.name ?? '');
     setDescription(category?.description ?? '');
@@ -63,16 +70,29 @@ export default function CategoriesPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const trimmed = name.trim();
+
+    // Mirrors the server bounds so a long name fails at the field rather than
+    // after a round trip.
+    if (!trimmed) {
       setFormError('Category name is required.');
       return;
     }
+    if (trimmed.length > 100) {
+      setFormError('Category name must be 100 characters or fewer.');
+      return;
+    }
+    if (description.trim().length > 500) {
+      setFormError('Description must be 500 characters or fewer.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const payload = { name: name.trim(), description: description.trim() || undefined };
+      const payload = { name: trimmed, description: description.trim() || undefined };
       const saved = editing
-        ? await updateCategory(editing._id, payload)
-        : await createCategory(payload);
+        ? await updateLabCategory(editing._id, payload)
+        : await createLabCategory(payload);
       setFormOpen(false);
       flash(editing ? `${saved.name} updated.` : `${saved.name} created.`);
       load();
@@ -82,17 +102,22 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleToggle = async (c: MedicineCategory) => {
+  const handleToggle = async (category: LabCategory) => {
     try {
-      await updateCategoryStatus(c._id, c.status === 'active' ? 'inactive' : 'active');
-      flash(`${c.name} ${c.status === 'active' ? 'deactivated' : 'activated'}.`);
+      await updateLabCategoryStatus(
+        category._id,
+        category.status === 'active' ? 'inactive' : 'active'
+      );
+      flash(
+        `${category.name} ${category.status === 'active' ? 'deactivated' : 'activated'}.`
+      );
       load();
     } catch (err) {
       setError(getErrorMessage(err, 'Unable to update the category.'));
     }
   };
 
-  const columns: Column<MedicineCategory>[] = [
+  const columns: Column<LabCategory>[] = [
     {
       key: 'categoryId',
       header: 'ID',
@@ -112,7 +137,11 @@ export default function CategoriesPage() {
       key: 'status',
       header: 'Status',
       render: (c) =>
-        c.status === 'active' ? <Badge tone="green">Active</Badge> : <Badge tone="red">Inactive</Badge>,
+        c.status === 'active' ? (
+          <Badge tone="green">Active</Badge>
+        ) : (
+          <Badge tone="slate">Inactive</Badge>
+        ),
     },
     {
       key: 'actions',
@@ -138,15 +167,16 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Medicine categories"
-        subtitle="Groups used to organize the catalog."
+        eyebrow="Laboratory"
+        title="Test categories"
+        subtitle="The groups every lab test is filed under. A test needs one, so add these before building the catalog."
         actions={
-          <div className="flex gap-2">
-            <Link to="/pharmacy/medicines">
-              <Button variant="ghost">Back to medicines</Button>
+          <>
+            <Link to="/laboratory/tests">
+              <Button variant="secondary">Back to tests</Button>
             </Link>
             <Button onClick={() => openForm(null)}>Add category</Button>
-          </div>
+          </>
         }
       />
 
@@ -160,7 +190,7 @@ export default function CategoriesPage() {
         emptyState={
           <EmptyState
             title="No categories yet"
-            description="Add categories like Analgesics or Antibiotics."
+            description="Add the groups your lab reports under — Hematology, Microbiology, Clinical chemistry — then the test catalog can be built."
             action={
               <Button size="sm" onClick={() => openForm(null)}>
                 Add category
@@ -179,15 +209,21 @@ export default function CategoriesPage() {
             <Button variant="secondary" onClick={() => setFormOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" form="category-form" loading={saving}>
+            <Button type="submit" form="lab-category-form" loading={saving}>
               {editing ? 'Save changes' : 'Create category'}
             </Button>
           </>
         }
       >
-        <form id="category-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+        <form id="lab-category-form" onSubmit={handleSubmit} noValidate className="space-y-4">
           {formError && <Alert tone="error">{formError}</Alert>}
-          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <Input
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Hematology"
+            autoFocus
+          />
           <Textarea
             label="Description"
             value={description}

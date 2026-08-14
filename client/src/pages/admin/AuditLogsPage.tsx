@@ -17,6 +17,7 @@ import Input from '../../components/ui/Input';
 import Pagination from '../../components/ui/Pagination';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
+import PageHeader from '../../components/ui/PageHeader';
 
 /** "lab_result_verified" → "Lab result verified" */
 const humanize = (value: string): string =>
@@ -151,26 +152,23 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Audit logs</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Append-only record of security and business actions. Entries cannot be edited or
-            deleted.
-          </p>
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setOrder((current) => (current === 'desc' ? 'asc' : 'desc'))}
-        >
-          {order === 'desc' ? 'Newest first' : 'Oldest first'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Audit logs"
+        subtitle="Append-only record of security and business actions. Entries cannot be edited or deleted."
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => setOrder((current) => (current === 'desc' ? 'asc' : 'desc'))}
+          >
+            {order === 'desc' ? 'Newest first' : 'Oldest first'}
+          </Button>
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <Input
             placeholder="Search description, actor, ID…"
             value={searchInput}
@@ -235,20 +233,19 @@ export default function AuditLogsPage() {
             />
           </div>
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={logs}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No audit entries"
-              description="Try widening the date range or clearing the filters."
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={logs}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No audit entries"
+            description="Try widening the date range or clearing the filters."
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -256,8 +253,8 @@ export default function AuditLogsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

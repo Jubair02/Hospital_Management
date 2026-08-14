@@ -21,6 +21,7 @@ import Modal from '../../components/ui/Modal';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
+import PageHeader from '../../components/ui/PageHeader';
 
 interface FormState {
   name: string;
@@ -238,19 +239,21 @@ export default function WardsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Wards</h1>
-          <p className="mt-1 text-sm text-slate-500">Hospital wards and bed availability.</p>
-        </div>
-        {manage && <Button onClick={() => openForm(null)}>Add ward</Button>}
-      </div>
+      <PageHeader
+        title="Wards"
+        subtitle="Hospital wards and bed availability."
+        actions={
+          <>
+            {manage && <Button onClick={() => openForm(null)}>Add ward</Button>}
+          </>
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input
             placeholder="Search ward name or ID…"
             value={searchInput}
@@ -268,21 +271,20 @@ export default function WardsPage() {
             placeholder="All types"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={wards}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No wards found"
-              description={manage ? 'Add the first ward to get started.' : 'No wards configured yet.'}
-              action={manage && <Button size="sm" onClick={() => openForm(null)}>Add ward</Button>}
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={wards}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No wards found"
+            description={manage ? 'Add the first ward to get started.' : 'No wards configured yet.'}
+            action={manage && <Button size="sm" onClick={() => openForm(null)}>Add ward</Button>}
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -290,8 +292,8 @@ export default function WardsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
 
       <Modal
         open={formOpen}

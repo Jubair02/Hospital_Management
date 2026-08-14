@@ -28,8 +28,10 @@ const writeCollapsed = (value: boolean): void => {
  * collapses to icons on desktop and slides in as a drawer on mobile, a
  * sticky header, and a width-capped scrolling content column.
  *
- * The unread-notification poll lives here rather than in the header so the
- * header badge and the sidebar badge share one request instead of two.
+ * The unread-notification poll lives here rather than in the header so it
+ * survives header re-renders and stays a single request for the whole shell.
+ * The bell in the header is the only entry to the inbox — the rail carries
+ * places to go, not counters.
  */
 export default function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -64,7 +66,6 @@ export default function DashboardLayout() {
       <Sidebar
         open={drawerOpen}
         collapsed={collapsed}
-        unreadCount={unreadCount}
         onClose={() => setDrawerOpen(false)}
         onToggleCollapsed={toggleCollapsed}
       />

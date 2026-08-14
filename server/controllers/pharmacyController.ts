@@ -20,11 +20,11 @@ import {
 } from '../services/pharmacyService.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 const queryString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
 
-const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const paging = (query: Record<string, unknown>) => {
   const page = Math.max(parseInt(queryString(query.page) ?? '', 10) || 1, 1);

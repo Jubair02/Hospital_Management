@@ -32,64 +32,25 @@ interface Destination {
 }
 
 /**
- * Grouped rather than flat. Six equally-weighted tiles force the reader to
- * re-read every label; three named groups of two let them skip straight to
- * the half of the page they came for.
+ * Only the two administration screens the navigation rail does not carry.
+ *
+ * Users, Audit logs, Departments and Analytics all have their own rows in the
+ * sidebar, so listing them again here made the page open with a menu of places
+ * the reader had just walked past. These two have nowhere else to be reached
+ * from, which is the whole reason they are still on the page.
  */
-const GROUPS: { label: string; items: Destination[] }[] = [
+const DESTINATIONS: Destination[] = [
   {
-    label: 'Accounts & access',
-    items: [
-      {
-        to: '/admin/users',
-        icon: 'users',
-        title: 'Users',
-        description:
-          'Create staff accounts, change roles, and activate, deactivate, or suspend access.',
-      },
-      {
-        to: '/admin/audit-logs',
-        icon: 'shield',
-        title: 'Audit logs',
-        description:
-          'Read-only trail of logins, permission changes, and clinical or financial actions.',
-      },
-    ],
+    to: '/admin/settings',
+    icon: 'cog',
+    title: 'System settings',
+    description: 'Hospital identity, currency, appointment slot length, and alert preferences.',
   },
   {
-    label: 'Configuration',
-    items: [
-      {
-        to: '/admin/departments',
-        icon: 'building',
-        title: 'Departments',
-        description: 'Clinical departments used by doctors, appointments, and wards.',
-      },
-      {
-        to: '/admin/settings',
-        icon: 'cog',
-        title: 'System settings',
-        description:
-          'Hospital identity, currency, appointment slot length, and alert preferences.',
-      },
-    ],
-  },
-  {
-    label: 'Monitoring',
-    items: [
-      {
-        to: '/admin/system-health',
-        icon: 'activity',
-        title: 'System health',
-        description: 'API and database status, uptime, version, and request and error counters.',
-      },
-      {
-        to: '/analytics',
-        icon: 'reports',
-        title: 'Analytics',
-        description: 'Hospital-wide activity, revenue, and the detailed report pages.',
-      },
-    ],
+    to: '/admin/system-health',
+    icon: 'activity',
+    title: 'System health',
+    description: 'API and database status, uptime, version, and request and error counters.',
   },
 ];
 
@@ -263,21 +224,6 @@ export default function AdminPanelPage() {
 
   /** Live figure shown beside a destination's title. */
   const metricFor = (to: string): ReactNode => {
-    if (to === '/admin/users' && accounts) {
-      return (
-        <Badge tone={accounts.suspended > 0 ? 'red' : 'slate'}>
-          {accounts.suspended > 0
-            ? `${accounts.suspended} suspended`
-            : `${accounts.total} accounts`}
-        </Badge>
-      );
-    }
-    if (to === '/admin/audit-logs' && activity) {
-      return <Badge tone="slate">{activity.total.toLocaleString()} entries</Badge>;
-    }
-    if (to === '/admin/departments' && departments) {
-      return <Badge tone="slate">{departments.active} active</Badge>;
-    }
     if (to === '/admin/settings' && settings) {
       return <Badge tone="slate">Saved {relativeTime(settings.updatedAt)}</Badge>;
     }
@@ -406,52 +352,12 @@ export default function AdminPanelPage() {
         </div>
       </Card>
 
-      {/* Asymmetric: destinations take two thirds, live context one third. */}
+      {/* Asymmetric: the trail takes two thirds, live context one third. The
+          proportions used to run the other way, when this column held a
+          six-item menu — a list that reads is worth more width than a list
+          that is clicked. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Card padded={false} className="lg:col-span-2">
-          <nav aria-label="Administration sections">
-            {GROUPS.map((group, index) => (
-              <section key={group.label} className={index > 0 ? 'border-t border-line' : ''}>
-                <h2 className="border-b border-line bg-slate-50/70 px-5 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  {group.label}
-                </h2>
-                <ul className="divide-y divide-line">
-                  {group.items.map((item) => (
-                    <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        className="group flex items-start gap-4 px-5 py-4 transition-colors duration-200 hover:bg-brand-50/60 active:bg-brand-100/60"
-                      >
-                        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100 transition-colors duration-200 group-hover:bg-brand-600 group-hover:text-white group-hover:ring-brand-600">
-                          <Icon name={item.icon} className="h-[1.125rem] w-[1.125rem]" />
-                        </span>
-
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                            <span className="text-[0.9375rem] font-semibold text-slate-900">
-                              {item.title}
-                            </span>
-                            {metricFor(item.to)}
-                          </span>
-                          <span className="mt-1 block text-sm leading-relaxed text-pretty text-slate-500">
-                            {item.description}
-                          </span>
-                        </span>
-
-                        <Icon
-                          name="chevronRight"
-                          className="mt-2 h-4 w-4 shrink-0 text-slate-300 transition duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600"
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </nav>
-        </Card>
-
-        <div className="space-y-5">
+        <div className="space-y-5 lg:order-2">
           <Card
             title="Staff accounts"
             icon="users"
@@ -530,70 +436,112 @@ export default function AdminPanelPage() {
           </Card>
 
           <Card
-            title="Recent activity"
-            subtitle="Newest entries in the audit trail"
-            icon="shield"
+            title="System"
+            subtitle="Screens the navigation rail does not carry"
+            icon="cog"
             padded={false}
-            actions={
-              <Link
-                to="/admin/audit-logs"
-                className="text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800"
-              >
-                Full trail →
-              </Link>
-            }
           >
-            {pending ? (
+            <nav aria-label="Administration screens">
               <ul className="divide-y divide-line">
-                {[0, 1, 2, 3].map((row) => (
-                  <li key={row} className="space-y-2 px-5 py-3.5">
-                    <div className="h-4 w-2/5 rounded-md skeleton" aria-label="Loading" />
-                    <div className="h-3 w-4/5 rounded-md skeleton" />
+                {DESTINATIONS.map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      className="group flex items-start gap-3.5 px-5 py-4 transition-colors duration-200 hover:bg-brand-50/60 active:bg-brand-100/60"
+                    >
+                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100 transition-colors duration-200 group-hover:bg-brand-600 group-hover:text-white group-hover:ring-brand-600">
+                        <Icon name={item.icon} className="h-[1.125rem] w-[1.125rem]" />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                          <span className="text-[0.9375rem] font-semibold text-slate-900">
+                            {item.title}
+                          </span>
+                          {metricFor(item.to)}
+                        </span>
+                        <span className="mt-1 block text-pretty text-sm leading-relaxed text-slate-500">
+                          {item.description}
+                        </span>
+                      </span>
+
+                      <Icon
+                        name="chevronRight"
+                        className="mt-2 h-4 w-4 shrink-0 text-slate-300 transition duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600"
+                      />
+                    </Link>
                   </li>
                 ))}
               </ul>
-            ) : activity && activity.logs.length > 0 ? (
-              <ol className="divide-y divide-line">
-                {activity.logs.map((log) => {
-                  const actor =
-                    log.actorLabel ??
-                    (log.actorId ? `${log.actorId.firstName} ${log.actorId.lastName}` : 'System');
-
-                  return (
-                    <li key={log._id} className="px-5 py-3.5">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 text-[0.8125rem] font-semibold text-slate-800">
-                          {humanize(log.action)}
-                        </p>
-                        <time
-                          dateTime={log.createdAt}
-                          title={new Date(log.createdAt).toLocaleString()}
-                          className="shrink-0 text-[0.6875rem] tabular-nums text-slate-400"
-                        >
-                          {relativeTime(log.createdAt)}
-                        </time>
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-pretty text-slate-500">
-                        {log.description}
-                      </p>
-                      <p className="mt-1.5 text-[0.6875rem] text-slate-400">
-                        {actor}
-                        {log.actorRole && ` · ${ROLE_LABELS[log.actorRole]}`}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <div className="px-5">
-                <EmptyState
-                  title="Nothing recorded yet"
-                  description="Logins, role changes, and clinical or financial actions appear here as staff use the portal."
-                />
-              </div>
-            )}
+            </nav>
           </Card>
         </div>
+
+        <Card
+          className="lg:order-1 lg:col-span-2"
+          title="Recent activity"
+          subtitle="Newest entries in the audit trail"
+          icon="shield"
+          padded={false}
+          actions={
+            <Link
+              to="/admin/audit-logs"
+              className="text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800"
+            >
+              Full trail →
+            </Link>
+          }
+        >
+          {pending ? (
+            <ul className="divide-y divide-line">
+              {[0, 1, 2, 3].map((row) => (
+                <li key={row} className="space-y-2 px-5 py-3.5">
+                  <div className="h-4 w-2/5 rounded-md skeleton" aria-label="Loading" />
+                  <div className="h-3 w-4/5 rounded-md skeleton" />
+                </li>
+              ))}
+            </ul>
+          ) : activity && activity.logs.length > 0 ? (
+            <ol className="divide-y divide-line">
+              {activity.logs.map((log) => {
+                const actor =
+                  log.actorLabel ??
+                  (log.actorId ? `${log.actorId.firstName} ${log.actorId.lastName}` : 'System');
+
+                return (
+                  <li key={log._id} className="px-5 py-3.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 text-[0.8125rem] font-semibold text-slate-800">
+                        {humanize(log.action)}
+                      </p>
+                      <time
+                        dateTime={log.createdAt}
+                        title={new Date(log.createdAt).toLocaleString()}
+                        className="shrink-0 text-[0.6875rem] tabular-nums text-slate-400"
+                      >
+                        {relativeTime(log.createdAt)}
+                      </time>
+                    </div>
+                    <p className="mt-1 text-pretty text-xs leading-relaxed text-slate-500">
+                      {log.description}
+                    </p>
+                    <p className="mt-1.5 text-[0.6875rem] text-slate-400">
+                      {actor}
+                      {log.actorRole && ` · ${ROLE_LABELS[log.actorRole]}`}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="px-5">
+              <EmptyState
+                title="Nothing recorded yet"
+                description="Logins, role changes, and clinical or financial actions appear here as staff use the portal."
+              />
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

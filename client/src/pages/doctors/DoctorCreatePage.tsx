@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../services/api';
 import type { CreateDoctorPayload, Department, UpdateDoctorPayload } from '../../types';
 import DoctorForm from '../../components/doctors/DoctorForm';
 import Alert from '../../components/ui/Alert';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function DoctorCreatePage() {
   const navigate = useNavigate();
@@ -31,12 +32,10 @@ export default function DoctorCreatePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Add doctor</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Creates the doctor's login account and professional profile together.
-        </p>
-      </div>
+      <PageHeader
+        title="Add doctor"
+        subtitle="Creates the doctor's login account and professional profile together."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 

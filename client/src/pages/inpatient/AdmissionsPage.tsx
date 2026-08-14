@@ -14,6 +14,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { AdmissionStatusBadge } from '../../components/inpatient/InpatientBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function AdmissionsPage() {
   const { role } = useAuth();
@@ -123,28 +124,26 @@ export default function AdmissionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            {role === 'doctor' ? 'My inpatients' : 'Admissions'}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {role === 'doctor'
-              ? 'Admitted patients under your care.'
-              : 'Inpatient admissions, newest first.'}
-          </p>
-        </div>
-        {canAdmit && (
-          <Link to="/inpatient/admissions/new">
-            <Button>Admit patient</Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title={role === 'doctor' ? 'My inpatients' : 'Admissions'}
+        subtitle={
+          role === 'doctor'
+            ? 'Admitted patients under your care.'
+            : 'Inpatient admissions, newest first.'
+        }
+        actions={
+          canAdmit && (
+            <Link to="/inpatient/admissions/new">
+              <Button>Admit patient</Button>
+            </Link>
+          )
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input
             placeholder="Search admission ID or patient…"
             value={searchInput}
@@ -187,29 +186,28 @@ export default function AdmissionsPage() {
             aria-label="Filter by admission date"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={admissions}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No admissions found"
-              description={
-                canAdmit ? 'Admit the first patient to get started.' : 'Nothing to show yet.'
-              }
-              action={
-                canAdmit && (
-                  <Link to="/inpatient/admissions/new">
-                    <Button size="sm">Admit patient</Button>
-                  </Link>
-                )
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={admissions}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No admissions found"
+            description={
+              canAdmit ? 'Admit the first patient to get started.' : 'Nothing to show yet.'
+            }
+            action={
+              canAdmit && (
+                <Link to="/inpatient/admissions/new">
+                  <Button size="sm">Admit patient</Button>
+                </Link>
+              )
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -217,8 +215,8 @@ export default function AdmissionsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

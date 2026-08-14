@@ -16,6 +16,7 @@ import Payment from '../models/Payment.js';
 import StockTransaction from '../models/StockTransaction.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 interface CreateUserBody {
   firstName: string;
@@ -63,7 +64,7 @@ export const getUsers = asyncHandler(async (req, res) => {
 
   const search = queryString(req.query.search);
   if (search) {
-    const term = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const term = escapeRegex(search.trim());
     filter.$or = [
       { firstName: { $regex: term, $options: 'i' } },
       { lastName: { $regex: term, $options: 'i' } },
@@ -79,11 +80,35 @@ export const getUsers = asyncHandler(async (req, res) => {
     User.countDocuments(filter),
   ]);
 
+  // The reference runs one way — a Patient points at its login, never the
+  // reverse — so a list of portal accounts has no route back to the people
+  // they belong to. Resolve it here for the rows that need it: one extra
+  // query, only when patient rows are actually on the page, and nothing added
+  // to the User document itself.
+  const portalLogins = users.filter((u) => u.role === 'patient');
+  const linkByUserId = new Map<string, { id: string; patientId: string }>();
+
+  if (portalLogins.length > 0) {
+    const linked = await Patient.find({ userId: { $in: portalLogins.map((u) => u._id) } })
+      .select('_id patientId userId')
+      .lean();
+
+    for (const record of linked) {
+      linkByUserId.set(String(record.userId), {
+        id: String(record._id),
+        patientId: record.patientId,
+      });
+    }
+  }
+
   res.json({
     success: true,
     message: 'Users fetched',
     data: {
-      users,
+      users: users.map((user) => {
+        const patient = linkByUserId.get(String(user._id));
+        return patient ? { ...user.toJSON(), patient } : user.toJSON();
+      }),
       pagination: {
         page,
         limit,

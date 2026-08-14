@@ -13,6 +13,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { InvoicePaymentBadge, InvoiceStatusBadge } from '../../components/billing/BillingBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -118,20 +119,20 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Invoices</h1>
-          <p className="mt-1 text-sm text-slate-500">Patient invoices, newest first.</p>
-        </div>
-        <Link to="/billing/invoices/new">
-          <Button>New invoice</Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Invoices"
+        subtitle="Patient invoices, newest first."
+        actions={
+          <Link to="/billing/invoices/new">
+            <Button>New invoice</Button>
+          </Link>
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Input
             placeholder="Search invoice ID or patient…"
             value={searchInput}
@@ -169,25 +170,24 @@ export default function InvoicesPage() {
             placeholder="All payment statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={invoices}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No invoices found"
-              description="Create the first invoice to get started."
-              action={
-                <Link to="/billing/invoices/new">
-                  <Button size="sm">New invoice</Button>
-                </Link>
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={invoices}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No invoices found"
+            description="Create the first invoice to get started."
+            action={
+              <Link to="/billing/invoices/new">
+                <Button size="sm">New invoice</Button>
+              </Link>
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -195,8 +195,8 @@ export default function InvoicesPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

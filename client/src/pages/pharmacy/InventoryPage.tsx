@@ -17,6 +17,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import StockInModal from '../../components/pharmacy/StockInModal';
 import AdjustStockModal from '../../components/pharmacy/AdjustStockModal';
+import PageHeader from '../../components/ui/PageHeader';
 
 const VIEW_OPTIONS = [
   { value: 'in_stock', label: 'In stock' },
@@ -140,21 +141,19 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Inventory</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Stock batches — earliest expiry is dispensed first (FEFO).
-          </p>
-        </div>
-        <Button onClick={() => setStockInOpen(true)}>Receive stock</Button>
-      </div>
+      <PageHeader
+        title="Inventory"
+        subtitle="Stock batches — earliest expiry is dispensed first (FEFO)."
+        actions={
+          <Button onClick={() => setStockInOpen(true)}>Receive stock</Button>
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Select
             aria-label="Filter by medicine"
             value={medicineFilter}
@@ -179,25 +178,24 @@ export default function InventoryPage() {
             placeholder="All batches"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={batches}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No batches found"
-              description="Receive stock to create the first inventory batch."
-              action={
-                <Button size="sm" onClick={() => setStockInOpen(true)}>
-                  Receive stock
-                </Button>
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={batches}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No batches found"
+            description="Receive stock to create the first inventory batch."
+            action={
+              <Button size="sm" onClick={() => setStockInOpen(true)}>
+                Receive stock
+              </Button>
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -205,8 +203,8 @@ export default function InventoryPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
 
       <StockInModal
         open={stockInOpen}

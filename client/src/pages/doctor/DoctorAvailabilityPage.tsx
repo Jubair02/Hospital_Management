@@ -5,6 +5,7 @@ import type { AvailabilitySlot, Doctor } from '../../types';
 import Alert from '../../components/ui/Alert';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import AvailabilityEditor from '../../components/doctors/AvailabilityEditor';
+import PageHeader from '../../components/ui/PageHeader';
 
 /** The logged-in doctor manages their own weekly availability. */
 export default function DoctorAvailabilityPage() {
@@ -36,12 +37,10 @@ export default function DoctorAvailabilityPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">My availability</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Appointments can only be booked inside these time windows.
-        </p>
-      </div>
+      <PageHeader
+        title="My availability"
+        subtitle="Appointments can only be booked inside these time windows."
+      />
 
       <AvailabilityEditor initial={doctor.availability} onSave={handleSave} />
     </div>

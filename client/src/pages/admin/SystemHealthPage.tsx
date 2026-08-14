@@ -8,6 +8,7 @@ import Badge, { type BadgeTone } from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Spinner from '../../components/ui/Spinner';
+import PageHeader from '../../components/ui/PageHeader';
 
 const statusTone = (status: string): BadgeTone => {
   if (status === 'ok' || status === 'connected') return 'green';
@@ -51,17 +52,15 @@ export default function SystemHealthPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">System health</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Live service state and request counters since the last server start.
-          </p>
-        </div>
-        <Button variant="secondary" onClick={load} loading={loading && Boolean(health)}>
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        title="System health"
+        subtitle="Live service state and request counters since the last server start."
+        actions={
+          <Button variant="secondary" onClick={load} loading={loading && Boolean(health)}>
+            Refresh
+          </Button>
+        }
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 

@@ -6,7 +6,6 @@ import { formatMoney } from '../../utils/money';
 import { formatDate } from '../../utils/date';
 import type { Pagination as PaginationInfo, PortalInvoice } from '../../types';
 import Alert from '../../components/ui/Alert';
-import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import PageHeader from '../../components/ui/PageHeader';
 import Pagination from '../../components/ui/Pagination';
@@ -93,16 +92,14 @@ export default function PortalBillingPage() {
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <Table
-          columns={columns}
-          rows={invoices}
-          loading={loading}
-          emptyState={
-            <EmptyState title="No invoices" description="Issued invoices will appear here." />
-          }
-        />
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={invoices}
+        loading={loading}
+        emptyState={
+          <EmptyState title="No invoices" description="Issued invoices will appear here." />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -110,8 +107,8 @@ export default function PortalBillingPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

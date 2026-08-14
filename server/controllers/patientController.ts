@@ -9,6 +9,7 @@ import User from '../models/User.js';
 import { nextPatientId, getPatientStats } from '../services/patientService.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 interface CreatePatientBody {
   firstName: string;
@@ -58,7 +59,6 @@ const CREATED_BY_PROJECTION = 'firstName lastName role';
 const queryString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
 
-const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * POST /api/patients

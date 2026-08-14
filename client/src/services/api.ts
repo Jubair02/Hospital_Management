@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const TOKEN_KEY = 'hms_token';
+/** Exported so other tabs can recognise this key in `storage` events. */
+export const TOKEN_KEY = 'hms_token';
 
 export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);

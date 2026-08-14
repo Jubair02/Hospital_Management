@@ -30,7 +30,24 @@ export default function Header({ unreadCount, onOpenSidebar }: HeaderProps) {
   const { user, role, logout } = useAuth();
   const { hospitalName } = useSettings();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [date, setDate] = useState(today);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Wards run through midnight and nothing else here forces a re-render, so
+  // an overnight shift would otherwise read yesterday's date until the tab was
+  // reloaded. The second of slack matters: firing a hair early would produce
+  // the same string, `setDate` would bail out, and the effect would never
+  // re-run to arm the next night's timer.
+  useEffect(() => {
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+
+    const timer = window.setTimeout(
+      () => setDate(today()),
+      midnight.getTime() - Date.now() + 1000
+    );
+    return () => window.clearTimeout(timer);
+  }, [date]);
 
   // Close on outside click or Escape, the same as the app's modals.
   useEffect(() => {
@@ -75,7 +92,7 @@ export default function Header({ unreadCount, onOpenSidebar }: HeaderProps) {
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
         <span className="hidden items-center gap-2 rounded-full border border-line bg-slate-50 py-1.5 pl-3 pr-3.5 text-xs font-medium text-slate-600 md:inline-flex">
           <Icon name="appointments" className="h-3.5 w-3.5 text-brand-600" />
-          {today()}
+          {date}
         </span>
 
         <Link

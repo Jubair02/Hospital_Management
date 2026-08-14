@@ -14,6 +14,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import ConsultationStatusBadge from '../../components/consultations/ConsultationStatusBadge';
+import PageHeader from '../../components/ui/PageHeader';
 
 const STATUS_OPTIONS = [
   { value: 'in_progress', label: 'In progress' },
@@ -137,15 +138,15 @@ export default function DoctorConsultationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">My consultations</h1>
-        <p className="mt-1 text-sm text-slate-500">Clinical records you have authored.</p>
-      </div>
+      <PageHeader
+        title="My consultations"
+        subtitle="Clinical records you have authored."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-xs">
+        <div className="max-w-xs">
           <Select
             aria-label="Filter by status"
             value={status}
@@ -157,25 +158,24 @@ export default function DoctorConsultationsPage() {
             placeholder="All statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={consultations}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No consultations yet"
-              description="Start a consultation from one of your appointments."
-              action={
-                <Link to="/doctor/appointments">
-                  <Button size="sm">My appointments</Button>
-                </Link>
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={consultations}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No consultations yet"
+            description="Start a consultation from one of your appointments."
+            action={
+              <Link to="/doctor/appointments">
+                <Button size="sm">My appointments</Button>
+              </Link>
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -183,8 +183,8 @@ export default function DoctorConsultationsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

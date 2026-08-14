@@ -11,6 +11,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { BedStatusBadge } from '../../components/inpatient/InpatientBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function BedsPage() {
   const [beds, setBeds] = useState<HospitalBed[]>([]);
@@ -110,15 +111,15 @@ export default function BedsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Beds</h1>
-        <p className="mt-1 text-sm text-slate-500">All beds across the hospital.</p>
-      </div>
+      <PageHeader
+        title="Beds"
+        subtitle="All beds across the hospital."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Select
             aria-label="Filter by ward"
             value={wardFilter}
@@ -146,15 +147,14 @@ export default function BedsPage() {
             placeholder="All statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={beds}
-          loading={loading}
-          emptyState={<EmptyState title="No beds found" description="Beds are managed per ward." />}
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={beds}
+        loading={loading}
+        emptyState={<EmptyState title="No beds found" description="Beds are managed per ward." />}
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -162,8 +162,8 @@ export default function BedsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

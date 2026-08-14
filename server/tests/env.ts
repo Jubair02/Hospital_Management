@@ -7,6 +7,7 @@ process.env.CLIENT_URL = 'http://localhost:5173';
 // Generous default so ordinary tests never trip the limiter; the
 // rate-limit spec builds its own app with a tight limit.
 process.env.LOGIN_RATE_LIMIT_MAX = '1000';
+process.env.PASSWORD_CHANGE_RATE_LIMIT_MAX = '1000';
 // Low bcrypt cost keeps the suite fast; production stays at 12 rounds.
 process.env.BCRYPT_ROUNDS = '4';
 

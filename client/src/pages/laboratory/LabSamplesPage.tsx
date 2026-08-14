@@ -12,6 +12,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { SampleStatusBadge } from '../../components/laboratory/LabBadges';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function LabSamplesPage() {
   const [samples, setSamples] = useState<LabSample[]>([]);
@@ -88,17 +89,15 @@ export default function LabSamplesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Samples</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Collection queue — collect or reject from the order page.
-        </p>
-      </div>
+      <PageHeader
+        title="Samples"
+        subtitle="Collection queue — collect or reject from the order page."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-xs">
+        <div className="max-w-xs">
           <Select
             aria-label="Filter by status"
             value={status}
@@ -114,17 +113,16 @@ export default function LabSamplesPage() {
             placeholder="All statuses"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={samples}
-          loading={loading}
-          emptyState={
-            <EmptyState title="No samples found" description="Nothing in this queue right now." />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={samples}
+        loading={loading}
+        emptyState={
+          <EmptyState title="No samples found" description="Nothing in this queue right now." />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -132,8 +130,8 @@ export default function LabSamplesPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

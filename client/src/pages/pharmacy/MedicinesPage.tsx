@@ -18,6 +18,7 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import MedicineFormModal from '../../components/pharmacy/MedicineFormModal';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function MedicinesPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -181,31 +182,31 @@ export default function MedicinesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Medicines</h1>
-          <p className="mt-1 text-sm text-slate-500">Pharmacy catalog and stock levels.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/pharmacy/categories">
-            <Button variant="secondary">Categories</Button>
-          </Link>
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setFormOpen(true);
-            }}
-          >
-            Add medicine
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Medicines"
+        subtitle="Pharmacy catalog and stock levels."
+        actions={
+          <div className="flex gap-2">
+            <Link to="/pharmacy/categories">
+              <Button variant="secondary">Categories</Button>
+            </Link>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              Add medicine
+            </Button>
+          </div>
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input
             placeholder="Search name, generic, brand, ID…"
             value={searchInput}
@@ -249,25 +250,24 @@ export default function MedicinesPage() {
             Low stock only
           </label>
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={medicines}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No medicines found"
-              description="Try changing your search or filter, or add the first medicine."
-              action={
-                <Button size="sm" onClick={() => setFormOpen(true)}>
-                  Add medicine
-                </Button>
-              }
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={medicines}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No medicines found"
+            description="Try changing your search or filter, or add the first medicine."
+            action={
+              <Button size="sm" onClick={() => setFormOpen(true)}>
+                Add medicine
+              </Button>
+            }
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -275,8 +275,8 @@ export default function MedicinesPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
 
       <MedicineFormModal
         open={formOpen}

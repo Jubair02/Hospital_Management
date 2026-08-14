@@ -22,6 +22,7 @@ import AppointmentFilters, {
   presetToRange,
   type AppointmentFilterValues,
 } from '../../components/appointments/AppointmentFilters';
+import PageHeader from '../../components/ui/PageHeader';
 
 const NO_FILTERS: AppointmentFilterValues = {
   status: '',
@@ -109,23 +110,19 @@ export default function AppointmentsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            {isDoctor ? 'My appointments' : 'Appointments'}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isDoctor
-              ? 'Appointments assigned to you.'
-              : 'Book and manage patient appointments.'}
-          </p>
-        </div>
-        {canCreateAppointment(role) && (
-          <Link to={`/${role}/appointments/new`}>
-            <Button>Book appointment</Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title={isDoctor ? 'My appointments' : 'Appointments'}
+        subtitle={
+          isDoctor ? 'Appointments assigned to you.' : 'Book and manage patient appointments.'
+        }
+        actions={
+          canCreateAppointment(role) && (
+            <Link to={`/${role}/appointments/new`}>
+              <Button>Book appointment</Button>
+            </Link>
+          )
+        }
+      />
 
       {flash && <Alert tone="success">{flash}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}

@@ -155,6 +155,24 @@
   .rise {
     animation: rise 260ms var(--ease-out-soft) both;
   }
+
+  .modal-backdrop {
+    animation: modal-backdrop-in 180ms var(--ease-out-soft) both;
+  }
+
+  /* Mobile first: the panel is a sheet and rises from the bottom edge it is
+   * attached to. Above `sm` it is a centred dialog, so it settles in place
+   * instead — a dialog that slides up from nowhere reads as a stray sheet. */
+  .modal-panel {
+    animation: modal-sheet-in 260ms var(--ease-out-soft) both;
+  }
+
+  @media (min-width: 40rem) {
+    .modal-panel {
+      animation-name: modal-dialog-in;
+      animation-duration: 200ms;
+    }
+  }
 }
 
 @keyframes skeleton-sweep {
@@ -170,6 +188,35 @@
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-sheet-in {
+  from {
+    transform: translateY(1.5rem);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes modal-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
   }
   to {
     opacity: 1;

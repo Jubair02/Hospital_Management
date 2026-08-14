@@ -16,6 +16,7 @@ import Button from '../../components/ui/Button';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function PharmacyPrescriptionsPage() {
   const [consultations, setConsultations] = useState<PharmacyPrescription[]>([]);
@@ -116,17 +117,15 @@ export default function PharmacyPrescriptionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Prescriptions</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Completed consultations with medicines to dispense.
-        </p>
-      </div>
+      <PageHeader
+        title="Prescriptions"
+        subtitle="Completed consultations with medicines to dispense."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="mb-4 max-w-md">
+        <div className="max-w-md">
           <Input
             placeholder="Search by patient name or ID…"
             value={searchInput}
@@ -134,20 +133,19 @@ export default function PharmacyPrescriptionsPage() {
             aria-label="Search prescriptions"
           />
         </div>
+      </Card>
 
-        <Table
-          columns={columns}
-          rows={consultations}
-          loading={loading}
-          emptyState={
-            <EmptyState
-              title="No prescriptions found"
-              description="Prescriptions appear here once doctors complete consultations."
-            />
-          }
-        />
-
-        <div className="mt-4">
+      <Table
+        columns={columns}
+        rows={consultations}
+        loading={loading}
+        emptyState={
+          <EmptyState
+            title="No prescriptions found"
+            description="Prescriptions appear here once doctors complete consultations."
+          />
+        }
+        footer={
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
@@ -155,8 +153,8 @@ export default function PharmacyPrescriptionsPage() {
             onPageChange={setPage}
             disabled={loading}
           />
-        </div>
-      </Card>
+        }
+      />
     </div>
   );
 }

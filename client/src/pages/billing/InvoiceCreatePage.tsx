@@ -13,6 +13,7 @@ import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import PageHeader from '../../components/ui/PageHeader';
 
 interface ManualItem {
   description: string;
@@ -153,12 +154,10 @@ export default function InvoiceCreatePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">New invoice</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Totals are calculated by the server — this page only proposes items.
-        </p>
-      </div>
+      <PageHeader
+        title="New invoice"
+        subtitle="Totals are calculated by the server — this page only proposes items."
+      />
 
       {error && <Alert tone="error">{error}</Alert>}
 
