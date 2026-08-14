@@ -1,6 +1,7 @@
 import express, { type Express, type Request } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import mongoose from 'mongoose';
 import { pinoHttp } from 'pino-http';
 import logger, { httpLogSerializers } from './utils/logger.js';
 import requestId from './middleware/requestId.js';
@@ -74,8 +75,28 @@ const createApp = (): Express => {
   });
 
   // --- Health check ---
+  // Reports the database, not just the process. This endpoint is what a
+  // platform health check polls, and one that returns 200 while MongoDB is
+  // unreachable converts a precise failure into a mystery: the service looks
+  // healthy and every real request 500s.
   app.get('/api/health', (_req, res) => {
-    res.json({ success: true, message: 'API is running', data: { uptime: process.uptime() } });
+    // Keyed, not a tuple: mongoose numbers "uninitialized" 99, so the states
+    // are not a contiguous range.
+    const STATES: Record<number, string> = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting',
+      99: 'uninitialized',
+    };
+    const state = STATES[mongoose.connection.readyState] ?? 'unknown';
+    const ready = mongoose.connection.readyState === 1;
+
+    res.status(ready ? 200 : 503).json({
+      success: ready,
+      message: ready ? 'API is running' : `API is running but the database is ${state}`,
+      data: { uptime: process.uptime(), database: state },
+    });
   });
 
   // --- Routes ---
