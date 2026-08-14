@@ -57,6 +57,13 @@ cd server && npm run build   # compile to dist/, then npm start
 cd client && npm run build
 ```
 
+## Deployment
+
+API on Render, frontend on Vercel, database on MongoDB Atlas — step by step in
+[`DEPLOYMENT.md`](DEPLOYMENT.md), including the two settings that silently
+break the pair (`VITE_API_URL` needs its `/api` suffix, `CLIENT_URL` must be
+the exact origin with no trailing slash).
+
 ## Roles
 
 | Role | Sees |

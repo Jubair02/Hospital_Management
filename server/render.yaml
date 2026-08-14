@@ -1,0 +1,43 @@
+# Render Blueprint for the HMS API.
+#
+# Import with: Render dashboard → New → Blueprint → point at this repo.
+# Values marked `sync: false` are NOT stored here — Render prompts for them
+# once and keeps them in its own encrypted store, so no secret is committed.
+services:
+  - type: web
+    name: hms-api
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: server
+    # --include=dev is required: NODE_ENV=production makes npm skip
+    # devDependencies, and TypeScript lives there — the build needs it.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render terminates TLS at its proxy, so Express must trust one hop
+      # for req.ip to be the real client (rate limiting + audit trail).
+      - key: TRUST_PROXY
+        value: 1
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: LOG_LEVEL
+        value: info
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # Exact origin of the deployed frontend, no trailing slash.
+      - key: CLIENT_URL
+        sync: false
+      - key: ADMIN_FIRST_NAME
+        sync: false
+      - key: ADMIN_LAST_NAME
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

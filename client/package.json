@@ -4,6 +4,9 @@
   "description": "Hospital Management System frontend — Phase 1 Foundation",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
