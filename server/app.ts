@@ -74,6 +74,23 @@ const createApp = (): Express => {
     next();
   });
 
+  // --- Service root ---
+  // This is an API-only service: every real route lives under /api. Without
+  // this, opening the deployed base URL in a browser returns "Route not found",
+  // which reads as a broken deploy when the service is in fact healthy.
+  app.get('/', (_req, res) => {
+    res.json({
+      success: true,
+      message: 'HMS API',
+      data: {
+        health: '/api/health',
+        // The browser-facing app is deployed separately; point there rather
+        // than leaving someone to guess this is the whole system.
+        client: process.env.CLIENT_URL ?? null,
+      },
+    });
+  });
+
   // --- Health check ---
   // Reports the database, not just the process. This endpoint is what a
   // platform health check polls, and one that returns 200 while MongoDB is
