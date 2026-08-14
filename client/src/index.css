@@ -1,0 +1,188 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* ---------------------------------------------------------------------
+   * Brand — clinical blue. This scale is the interface colour: 600 carries
+   * primary actions, 700/800 their pressed states, 50/100 the tinted
+   * surfaces behind icons and active navigation rows.
+   * ------------------------------------------------------------------- */
+  --color-brand-50: #eff5ff;
+  --color-brand-100: #dbe8fe;
+  --color-brand-200: #bfd7fe;
+  --color-brand-300: #93bcfd;
+  --color-brand-400: #609afa;
+  --color-brand-500: #3b7cf6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4fd8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+
+  /* ---------------------------------------------------------------------
+   * Accent — teal. Exactly one accent, used for "settled / verified / in
+   * hand" states and nothing decorative. It is deliberately NOT used as a
+   * second categorical data hue: teal sits too close to the brand blue for
+   * red-green colour blindness to separate the two, so charts pair blue
+   * with amber instead (see components/charts/chartTheme.ts).
+   * ------------------------------------------------------------------- */
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-200: #99f6e4;
+  --color-accent-300: #5eead4;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9488;
+  --color-accent-700: #0f766e;
+  --color-accent-800: #115e59;
+
+  /* Navigation rail — deep navy, so the white content area stays the
+   * brightest surface on screen and the eye lands on the data first. */
+  --color-navy-700: #1c3055;
+  --color-navy-800: #152441;
+  --color-navy-900: #101d38;
+  --color-navy-950: #0a1428;
+
+  /* Surfaces — cool near-white canvas, pure white cards */
+  --color-canvas: #f4f7fc;
+  --color-surface: #ffffff;
+  --color-line: #e6ebf3;
+  --color-line-strong: #d5dde9;
+
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui,
+    -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* Softer corner language across the whole app */
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+
+  /* Navy-tinted elevation — reads as depth rather than as grey haze.
+   * Overriding the built-in steps upgrades every existing `shadow-sm`. */
+  --shadow-xs: 0 1px 2px 0 rgb(16 29 56 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(16 29 56 / 0.04), 0 1px 3px 0 rgb(16 29 56 / 0.06);
+  --shadow-md: 0 2px 4px -1px rgb(16 29 56 / 0.05), 0 8px 16px -4px rgb(16 29 56 / 0.08);
+  --shadow-lg: 0 4px 8px -2px rgb(16 29 56 / 0.06), 0 16px 32px -8px rgb(16 29 56 / 0.12);
+  --shadow-xl: 0 8px 16px -4px rgb(16 29 56 / 0.08), 0 24px 48px -12px rgb(16 29 56 / 0.16);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-slate-800, #1e293b);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tighter tracking reads as deliberate at display sizes and keeps long
+   * KPI numbers compact. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.014em;
+  }
+
+  /* Every figure in the app aligns column to column */
+  :where(th, td) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tailwind v4's reset drops the pointer cursor on buttons; every control
+   * in the app should still say "clickable" on hover. */
+  :where(button, [role="button"], summary):not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Visible keyboard focus everywhere */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* Shared card surface. Utilities still win, so any caller can override
+   * the padding, border or background per instance. */
+  .surface-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Slim, unobtrusive scrollbars inside panels and the navigation rail */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.4) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: rgb(148 163 184 / 0.4);
+    border-radius: 9999px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Loading placeholder that reads as "value pending", not as a bug */
+  .skeleton {
+    background-color: var(--color-slate-100);
+    background-image: linear-gradient(
+      90deg,
+      var(--color-slate-100) 0%,
+      var(--color-slate-200) 50%,
+      var(--color-slate-100) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  /* One quiet entrance per view — content settles, nothing bounces */
+  .rise {
+    animation: rise 260ms var(--ease-out-soft) both;
+  }
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
