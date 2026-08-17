@@ -12,6 +12,20 @@ export const getMeRequest = async (): Promise<User> => {
 };
 
 /**
+ * Edits the signed-in staff member's own details. The server accepts these
+ * three fields and nothing else — email is the sign-in credential and role is
+ * privilege, so both stay with an administrator.
+ */
+export const updateOwnProfileRequest = async (payload: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}): Promise<User> => {
+  const { data } = await api.patch<ApiResponse<{ user: User }>>('/auth/me', payload);
+  return data.data.user;
+};
+
+/**
  * Sign-out is the one call that races its own credentials. The caller drops
  * the token the moment it fires, but the request interceptor that normally
  * attaches the header does not run until a microtask later — by which point

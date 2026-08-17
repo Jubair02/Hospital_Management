@@ -12,8 +12,10 @@ import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
+import Icon from '../../components/ui/icons';
 import { InvoicePaymentBadge, InvoiceStatusBadge } from '../../components/billing/BillingBadges';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -64,45 +66,91 @@ export default function InvoicesPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  const filtered = Boolean(search || invoiceStatus || paymentStatus);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setInvoiceStatus('');
+    setPaymentStatus('');
+    setPage(1);
+  };
+
+  /**
+   * Six columns, not nine. The date belongs under the invoice number it
+   * identifies, the amount already paid belongs under the total it came out
+   * of, and the two statuses are read together — splitting them into separate
+   * columns bought a horizontal scrollbar and nothing else.
+   */
   const columns: Column<Invoice>[] = [
     {
       key: 'invoiceId',
       header: 'Invoice',
-      render: (i) => <span className="font-medium text-brand-800">{i.invoiceId}</span>,
+      render: (i) => (
+        <div className="min-w-0">
+          <Link
+            to={`/billing/invoices/${i._id}`}
+            className="font-semibold tabular-nums text-brand-800 transition-colors hover:text-brand-900 hover:underline"
+          >
+            {i.invoiceId}
+          </Link>
+          <p className="mt-0.5 text-xs text-slate-500">{formatDate(i.createdAt)}</p>
+        </div>
+      ),
     },
     {
       key: 'patient',
       header: 'Patient',
       render: (i) =>
         i.patientId ? (
-          <div>
-            <p className="font-medium text-slate-800">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-slate-800">
               {i.patientId.firstName} {i.patientId.lastName}
             </p>
-            <p className="text-slate-500">{i.patientId.patientId}</p>
+            <p className="mt-0.5 text-xs tabular-nums text-slate-500">{i.patientId.patientId}</p>
           </div>
         ) : (
-          '—'
+          <span className="text-slate-400">—</span>
         ),
     },
-    { key: 'date', header: 'Date', render: (i) => formatDate(i.createdAt) },
     {
       key: 'total',
       header: 'Total',
-      render: (i) => <span className="font-semibold">{formatMoney(i.totalAmount)}</span>,
+      className: 'text-right',
+      render: (i) => (
+        <div>
+          <p className="font-semibold tabular-nums text-slate-900">{formatMoney(i.totalAmount)}</p>
+          {i.amountPaid > 0 && (
+            <p className="mt-0.5 text-xs tabular-nums text-accent-700">
+              {formatMoney(i.amountPaid)} paid
+            </p>
+          )}
+        </div>
+      ),
     },
-    { key: 'paid', header: 'Paid', render: (i) => formatMoney(i.amountPaid) },
     {
       key: 'due',
       header: 'Due',
+      className: 'text-right',
       render: (i) => (
-        <span className={i.dueAmount > 0 ? 'font-semibold text-rose-600' : 'text-slate-500'}>
+        <span
+          className={`tabular-nums ${
+            i.dueAmount > 0 ? 'font-semibold text-rose-600' : 'text-slate-400'
+          }`}
+        >
           {formatMoney(i.dueAmount)}
         </span>
       ),
     },
-    { key: 'invoiceStatus', header: 'Invoice', render: (i) => <InvoiceStatusBadge status={i.invoiceStatus} /> },
-    { key: 'paymentStatus', header: 'Payment', render: (i) => <InvoicePaymentBadge status={i.paymentStatus} /> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (i) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <InvoiceStatusBadge status={i.invoiceStatus} />
+          <InvoicePaymentBadge status={i.paymentStatus} />
+        </div>
+      ),
+    },
     {
       key: 'actions',
       header: <span className="sr-only">Actions</span>,
@@ -111,6 +159,7 @@ export default function InvoicesPage() {
         <Link to={`/billing/invoices/${i._id}`}>
           <Button variant="ghost" size="sm">
             Open
+            <Icon name="chevronRight" className="h-3.5 w-3.5" strokeWidth="2.2" />
           </Button>
         </Link>
       ),
@@ -119,26 +168,34 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Invoices"
-        subtitle="Patient invoices, newest first."
-        actions={
-          <Link to="/billing/invoices/new">
-            <Button>New invoice</Button>
-          </Link>
-        }
-      />
+      <div className="space-y-3">
+        <BackLink to="/billing" label="Billing" />
+
+        <PageHeader
+          eyebrow="Billing"
+          title="Invoices"
+          subtitle="Every patient invoice, newest first."
+          actions={
+            <Link to="/billing/invoices/new">
+              <Button>
+                <Icon name="plus" className="h-4 w-4" />
+                New invoice
+              </Button>
+            </Link>
+          }
+        />
+      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             placeholder="Search invoice ID or patient…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             aria-label="Search invoices"
-            className="sm:col-span-2"
+            className="lg:col-span-2"
           />
           <Select
             aria-label="Filter by invoice status"
@@ -170,6 +227,23 @@ export default function InvoicesPage() {
             placeholder="All payment statuses"
           />
         </div>
+
+        {/* Only present once something is actually filtered — an always-visible
+            "clear" row is a permanent reminder of a control nobody used. */}
+        {filtered && (
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3.5">
+            <p className="text-xs text-slate-500">
+              {loading
+                ? 'Searching…'
+                : `${pagination.total.toLocaleString()} matching invoice${
+                    pagination.total === 1 ? '' : 's'
+                  }`}
+            </p>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          </div>
+        )}
       </Card>
 
       <Table
@@ -178,12 +252,22 @@ export default function InvoicesPage() {
         loading={loading}
         emptyState={
           <EmptyState
-            title="No invoices found"
-            description="Create the first invoice to get started."
+            title={filtered ? 'No invoices match these filters' : 'No invoices yet'}
+            description={
+              filtered
+                ? 'Widen the search, or clear the filters to see every invoice.'
+                : 'Bill a consultation, a lab order, or a dispensing to create the first one.'
+            }
             action={
-              <Link to="/billing/invoices/new">
-                <Button size="sm">New invoice</Button>
-              </Link>
+              filtered ? (
+                <Button size="sm" variant="secondary" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : (
+                <Link to="/billing/invoices/new">
+                  <Button size="sm">New invoice</Button>
+                </Link>
+              )
             }
           />
         }

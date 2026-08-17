@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../utils/date';
-import type { Appointment } from '../../types';
+import { isAppointmentOverdue, type Appointment } from '../../types';
 import Table, { type Column } from '../ui/Table';
 import Button from '../ui/Button';
+import Badge from '../ui/Badge';
 import AppointmentStatusBadge from './AppointmentStatusBadge';
 import type { ReactNode } from 'react';
 
@@ -12,6 +13,17 @@ interface AppointmentTableProps {
   emptyState?: ReactNode;
   /** Hide the doctor column on the doctor's own view. */
   showDoctor?: boolean;
+  /**
+   * Passed straight to the table's own footer strip — pagination belongs
+   * inside the surface holding the rows it pages through, not floating
+   * beneath it.
+   */
+  footer?: ReactNode;
+  /**
+   * Replaces the row's View button. A doctor's list opens clinical records
+   * rather than booking details, so the action differs by who is reading.
+   */
+  renderAction?: (appointment: Appointment) => ReactNode;
 }
 
 export default function AppointmentTable({
@@ -19,6 +31,8 @@ export default function AppointmentTable({
   loading = false,
   emptyState,
   showDoctor = true,
+  footer,
+  renderAction,
 }: AppointmentTableProps) {
   const columns: Column<Appointment>[] = [
     {
@@ -82,7 +96,14 @@ export default function AppointmentTable({
     {
       key: 'status',
       header: 'Status',
-      render: (a) => <AppointmentStatusBadge status={a.status} />,
+      render: (a) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <AppointmentStatusBadge status={a.status} />
+          {/* Its day has gone but it still holds the doctor's time. Nothing
+              closes these on their own, so the list is where they surface. */}
+          {isAppointmentOverdue(a) && <Badge tone="amber">Overdue</Badge>}
+        </div>
+      ),
     },
     {
       key: 'createdBy',
@@ -98,15 +119,26 @@ export default function AppointmentTable({
       key: 'actions',
       header: <span className="sr-only">Actions</span>,
       className: 'text-right',
-      render: (a) => (
-        <Link to={`/appointments/${a._id}`}>
-          <Button variant="ghost" size="sm">
-            View
-          </Button>
-        </Link>
-      ),
+      render: (a) =>
+        renderAction ? (
+          renderAction(a)
+        ) : (
+          <Link to={`/appointments/${a._id}`}>
+            <Button variant="ghost" size="sm">
+              View
+            </Button>
+          </Link>
+        ),
     },
   ];
 
-  return <Table columns={columns} rows={appointments} loading={loading} emptyState={emptyState} />;
+  return (
+    <Table
+      columns={columns}
+      rows={appointments}
+      loading={loading}
+      emptyState={emptyState}
+      footer={footer}
+    />
+  );
 }

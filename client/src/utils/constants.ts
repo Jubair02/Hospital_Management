@@ -31,6 +31,12 @@ export const STAFF_ROLE_LABELS: Partial<Record<Role, string>> = {
   lab_technician: ROLE_LABELS.lab_technician,
 };
 
+/**
+ * Everyone who works here — every role except `patient`. Derived from the map
+ * above so the two cannot drift apart when a role is added.
+ */
+export const STAFF_ROLES = Object.keys(STAFF_ROLE_LABELS) as Role[];
+
 /** Landing page for each role after login. */
 export const DASHBOARD_PATHS: Record<Role, string> = {
   admin: '/admin/dashboard',

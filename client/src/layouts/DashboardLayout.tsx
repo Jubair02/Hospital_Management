@@ -71,7 +71,9 @@ export default function DashboardLayout() {
       />
 
       <div
-        className={`flex min-h-screen flex-col transition-[padding] duration-200 ease-out ${
+        // `print:pl-0` matters because the rail is hidden on paper: without it
+        // a printed invoice starts 16rem in from the left edge.
+        className={`flex min-h-screen flex-col transition-[padding] duration-200 ease-out print:pl-0 ${
           collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-[16.5rem]'
         }`}
       >
@@ -80,7 +82,7 @@ export default function DashboardLayout() {
           onOpenSidebar={() => setDrawerOpen(true)}
         />
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:p-0">
           {/* One entrance when the shell mounts. Deliberately NOT keyed on the
               route: keying would remount every page on navigation, which would
               re-fetch and reset state that React Router currently preserves. */}

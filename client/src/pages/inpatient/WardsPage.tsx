@@ -22,6 +22,8 @@ import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
+import { canViewInpatientDashboard } from '../../utils/permissions';
 
 interface FormState {
   name: string;
@@ -237,40 +239,81 @@ export default function WardsPage() {
     },
   ];
 
+  // Read from the live inputs so the control appears on the keystroke
+  // rather than after the search debounce.
+  const hasFilters = Boolean(searchInput || typeFilter);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setTypeFilter('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Wards"
-        subtitle="Hospital wards and bed availability."
-        actions={
-          <>
-            {manage && <Button onClick={() => openForm(null)}>Add ward</Button>}
-          </>
-        }
-      />
+      <div className="space-y-3">
+        {canViewInpatientDashboard(role) && (
+          <BackLink to="/inpatient" label="Inpatient" />
+        )}
+
+        <PageHeader
+          title="Wards"
+          subtitle="Hospital wards and bed availability."
+          actions={
+            <>
+              {manage && <Button onClick={() => openForm(null)}>Add ward</Button>}
+            </>
+          }
+        />
+      </div>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Input
-            placeholder="Search ward name or ID…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label="Search wards"
-          />
-          <Select
-            aria-label="Filter by type"
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setPage(1);
-            }}
-            options={WARD_TYPES.map((t) => ({ value: t, label: t.toUpperCase() }))}
-            placeholder="All types"
-          />
+      <Card padded={false}>
+        <div className="p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Input
+              placeholder="Search ward name or ID…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search wards"
+            />
+            <Select
+              aria-label="Filter by type"
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              options={WARD_TYPES.map((t) => ({ value: t, label: t.toUpperCase() }))}
+              placeholder="All types"
+            />
+          </div>
         </div>
+
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-slate-50/60 px-4 py-2.5 text-xs text-slate-500">
+            <span aria-live="polite">
+              {loading
+                ? 'Searching\u2026'
+                : `${pagination.total.toLocaleString()} ${
+                    pagination.total === 1 ? 'ward matches' : 'wards match'
+                  }`}
+            </span>
+            <span className="text-slate-300" aria-hidden="true">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="font-semibold text-brand-700 transition-colors duration-200 hover:text-brand-800"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </Card>
 
       <Table

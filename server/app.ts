@@ -20,6 +20,8 @@ import pharmacyRoutes from './routes/pharmacyRoutes.js';
 import laboratoryRoutes from './routes/laboratoryRoutes.js';
 import billingRoutes from './routes/billingRoutes.js';
 import inpatientRoutes from './routes/inpatientRoutes.js';
+import observationRoutes from './routes/observationRoutes.js';
+import nursingRoutes from './routes/nursingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import reportsRoutes from './routes/reportsRoutes.js';
@@ -130,6 +132,8 @@ const createApp = (): Express => {
   app.use('/api/laboratory', laboratoryRoutes);
   app.use('/api/billing', billingRoutes);
   app.use('/api/inpatient', inpatientRoutes);
+  app.use('/api/observations', observationRoutes);
+  app.use('/api/nursing', nursingRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/analytics', analyticsRoutes);

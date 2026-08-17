@@ -38,6 +38,17 @@ router.use(authenticate);
 // prescriptions through Phase 4; nurses keep their read-only access to
 // completed consultations (which include prescriptions) via the Phase 4
 // routes; receptionists have no clinical/pharmacy access.
+/**
+ * One exception to the blanket guard below: nurses may read the medicine
+ * catalogue. Charting an administration against a catalogue entry rather than
+ * a hand-typed drug name is what keeps a misspelling out of a legal record.
+ * Registered before the guard, and deliberately read-only.
+ */
+router.get('/medicines', authorize('admin', 'pharmacist', 'nurse'), getMedicines);
+router.get('/medicines/:id', authorize('admin', 'pharmacist', 'nurse'), getMedicineById);
+
+// Everything else in the pharmacy module is admin + pharmacist. Doctors author
+// prescriptions through Phase 4; receptionists have no clinical access.
 router.use(authorize('admin', 'pharmacist'));
 
 // --- Categories ---
@@ -46,11 +57,8 @@ router.patch('/categories/:id', validateCategory(true), updateCategory);
 router.patch('/categories/:id/status', validateCategoryStatus, updateCategoryStatus);
 
 // --- Medicines ---
-router.route('/medicines').get(getMedicines).post(validateMedicine(false), createMedicine);
-router
-  .route('/medicines/:id')
-  .get(getMedicineById)
-  .patch(validateMedicine(true), updateMedicine);
+router.route('/medicines').post(validateMedicine(false), createMedicine);
+router.route('/medicines/:id').patch(validateMedicine(true), updateMedicine);
 router.patch('/medicines/:id/status', validateMedicineStatus, updateMedicineStatus);
 
 // --- Inventory ---

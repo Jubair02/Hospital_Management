@@ -9,15 +9,17 @@ import {
 import { getErrorMessage } from '../../services/api';
 import type { HospitalBed, Ward } from '../../types';
 import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
+import BackLink from '../../components/ui/BackLink';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Modal from '../../components/ui/Modal';
 import Table, { type Column } from '../../components/ui/Table';
+import EmptyState from '../../components/ui/EmptyState';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import { BedStatusBadge } from '../../components/inpatient/InpatientBadges';
+import StackedBar from '../../components/charts/StackedBar';
 
 export default function WardDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -170,50 +172,108 @@ export default function WardDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-slate-900">{ward.name}</h1>
-            {ward.status === 'active' ? (
-              <Badge tone="green">Active</Badge>
-            ) : (
-              <Badge tone="red">Inactive</Badge>
+      <BackLink to="/inpatient/wards" label="Wards" />
+
+      {/* The ward's state, not a sentence describing it. Bed counts were a
+          run-on line under the title; they are the reason anyone opens this
+          page, so they get the same treatment as on the inpatient board. */}
+      <section className="surface-card relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-white"
+        />
+
+        <div className="relative grid grid-cols-1 gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-8">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="text-xl font-semibold tracking-[-0.014em] text-slate-900 sm:text-2xl">
+                {ward.name}
+              </h1>
+              {ward.status === 'active' ? (
+                <Badge tone="green">Active</Badge>
+              ) : (
+                <Badge tone="slate">Inactive</Badge>
+              )}
+              <Badge tone="brand">{ward.type.toUpperCase()}</Badge>
+            </div>
+
+            <p className="mt-1.5 text-sm text-slate-500">
+              <span className="font-semibold tabular-nums text-slate-700">{ward.wardId}</span>
+              {typeof ward.department === 'object' && ward.department && (
+                <> · {ward.department.name}</>
+              )}
+              {ward.floor && <> · Floor {ward.floor}</>}
+            </p>
+
+            {ward.description && (
+              <p className="mt-3 max-w-prose text-pretty text-sm leading-relaxed text-slate-600">
+                {ward.description}
+              </p>
             )}
-            <Badge tone="brand">{ward.type.toUpperCase()}</Badge>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {ward.wardId}
-            {typeof ward.department === 'object' && ward.department && (
-              <> · {ward.department.name}</>
-            )}
-            {ward.floor && <> · Floor {ward.floor}</>}
-            {' · '}
-            <span className="font-medium text-emerald-700">{available} free</span> /{' '}
-            {occupied} occupied / {beds.length} total
-          </p>
+
+          <div className="lg:border-l lg:border-line lg:pl-8">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                Bed state
+              </h2>
+              <p className="text-lg font-semibold leading-none tabular-nums text-slate-900">
+                {beds.length === 0
+                  ? '—'
+                  : `${Math.round((occupied / beds.length) * 100)}%`}
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {beds.length.toLocaleString()} bed{beds.length === 1 ? '' : 's'} in this ward
+            </p>
+
+            <div className="mt-4">
+              <StackedBar
+                segments={[
+                  { label: 'Occupied', count: occupied, tone: 'brand' },
+                  { label: 'Available', count: available, tone: 'teal' },
+                  { label: 'Other', count: Math.max(0, beds.length - occupied - available), tone: 'slate' },
+                ]}
+                ariaLabel="Beds in this ward by status"
+                emptyMessage="No beds added yet."
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link to="/inpatient/wards">
-            <Button variant="ghost">Back to wards</Button>
-          </Link>
-          {manage && <Button onClick={() => setBedModalOpen(true)}>Add bed</Button>}
-        </div>
-      </div>
+
+        {manage && (
+          <div className="relative flex border-t border-line bg-slate-50/70 p-4 sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={() => setBedModalOpen(true)}>
+              Add bed
+            </Button>
+          </div>
+        )}
+      </section>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card title="Beds">
-        <Table
-          columns={columns}
-          rows={beds}
-          emptyState={
-            <p className="text-center text-sm text-slate-500">
-              No beds in this ward yet{manage ? ' — add the first one.' : '.'}
-            </p>
-          }
-        />
-      </Card>
+      <Table
+        columns={columns}
+        rows={beds}
+        emptyState={
+          <EmptyState
+            title="No beds in this ward"
+            description={
+              manage
+                ? 'Add the first bed and it becomes available for admissions.'
+                : 'Nothing to show until beds are added.'
+            }
+            action={
+              manage && (
+                <Button size="sm" onClick={() => setBedModalOpen(true)}>
+                  Add bed
+                </Button>
+              )
+            }
+          />
+        }
+      />
 
       <Modal
         open={bedModalOpen}

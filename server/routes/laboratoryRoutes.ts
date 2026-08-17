@@ -41,7 +41,8 @@ router.use(authenticate);
 //   catalog manage — admin; catalog view — admin, lab tech, doctor
 //   order create — doctor (own consultations only, checked in service)
 //   order view — admin + lab tech (all); doctor (own + completed); nurse (completed)
-//   samples & results workflow — admin + lab tech
+//   sample collection — admin + lab tech + nurse (drawn on the ward)
+//   sample reject / results workflow — admin + lab tech
 //   receptionist / pharmacist — no laboratory access (lab data is clinical)
 
 // --- Categories ---
@@ -83,10 +84,13 @@ router.patch(
 );
 
 // --- Samples ---
-router.get('/samples', authorize('admin', 'lab_technician'), getLabSamples);
+// Ward nurses draw samples, so they need to see which are outstanding and
+// to record the collection. Rejecting a sample stays with the laboratory —
+// that is a judgement about specimen quality made at the bench.
+router.get('/samples', authorize('admin', 'lab_technician', 'nurse'), getLabSamples);
 router.patch(
   '/samples/:id/collect',
-  authorize('admin', 'lab_technician'),
+  authorize('admin', 'lab_technician', 'nurse'),
   validateCollectSample,
   patchCollectSample
 );

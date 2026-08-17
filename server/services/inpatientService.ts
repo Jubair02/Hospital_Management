@@ -11,7 +11,7 @@ import Patient from '../models/Patient.js';
 import Doctor from '../models/Doctor.js';
 import ApiError from '../utils/ApiError.js';
 import { nextSequenceId } from './sequenceService.js';
-import { notifyDoctor, notifyPatient } from './notificationService.js';
+import { notifyDoctor, notifyPatient, notifyWardNurses } from './notificationService.js';
 
 export const nextWardId = (): Promise<string> => nextSequenceId('wardId', 'WRD', 3);
 export const nextBedId = (): Promise<string> => nextSequenceId('bedId', 'BED', 5);
@@ -150,6 +150,15 @@ export const admitPatient = async (
       dedupeKey: `admission:created:${admission._id}`,
     });
 
+    await notifyWardNurses(ward._id, {
+      type: 'admission',
+      title: 'Patient arriving on your ward',
+      message: `${patient.firstName} ${patient.lastName} admitted to bed ${bed.bedNumber} (${admission.admissionId}).`,
+      referenceType: 'admission',
+      referenceId: admission._id,
+      dedupeKey: `admission:created:nurses:${admission._id}`,
+    });
+
     await notifyPatient(patient._id, {
       type: 'admission',
       title: 'Admission recorded',
@@ -253,6 +262,26 @@ export const transferPatient = async (
     referenceType: 'admission',
     referenceId: admission._id,
     dedupeKey: `admission:transfer:${transfer._id}`,
+  });
+
+  // Both ends of a move are staffed by different people: one ward is losing a
+  // patient and another is receiving one.
+  await notifyWardNurses(toWard._id, {
+    type: 'admission',
+    title: 'Patient arriving on your ward',
+    message: `${admission.admissionId} transferred in to bed ${toBed.bedNumber}.`,
+    referenceType: 'admission',
+    referenceId: admission._id,
+    dedupeKey: `admission:transfer:in:${transfer._id}`,
+  });
+
+  await notifyWardNurses(fromWard._id, {
+    type: 'admission',
+    title: 'Patient left your ward',
+    message: `${admission.admissionId} transferred to ${toWard.name}, bed ${toBed.bedNumber}.`,
+    referenceType: 'admission',
+    referenceId: admission._id,
+    dedupeKey: `admission:transfer:out:${transfer._id}`,
   });
 
   return transfer;

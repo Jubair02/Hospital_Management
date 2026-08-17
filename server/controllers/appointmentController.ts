@@ -13,6 +13,7 @@ import {
   toCalendarDate,
   type CreateAppointmentInput,
 } from '../services/appointmentService.js';
+import { findOpenConsultation } from '../services/consultationService.js';
 import { notifyDoctor, notifyPatient } from '../services/notificationService.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -225,6 +226,18 @@ export const updateAppointment = asyncHandler(async (req, res) => {
     nextEnd !== appointment.endTime;
 
   if (timeChanged) {
+    // Starting a consultation confirms the appointment, and confirmed
+    // appointments are editable — so the visit currently being documented
+    // could be moved to another day underneath the doctor. Reason and notes
+    // stay editable; only the slot is frozen.
+    const open = await findOpenConsultation(appointment._id);
+    if (open) {
+      throw new ApiError(
+        409,
+        `${open.consultationId} is open for this appointment, so it cannot be rescheduled while the patient is being seen.`
+      );
+    }
+
     await rescheduleChecks(appointment, nextDate, nextStart, nextEnd);
     appointment.appointmentDate = nextDate;
     appointment.startTime = nextStart;
@@ -274,6 +287,22 @@ export const updateAppointmentStatus = asyncHandler(async (req, res) => {
         allowed.length ? allowed.join(', ') : 'none'
       }.`
     );
+  }
+
+  /**
+   * A consultation in progress means the patient is with the doctor right now.
+   * Cancelling or no-showing that appointment contradicts the record being
+   * written, and left it stranded: in_progress forever, and unable to complete
+   * because its appointment could no longer reach completed.
+   */
+  if (target === 'cancelled' || target === 'no_show') {
+    const open = await findOpenConsultation(appointment._id);
+    if (open) {
+      throw new ApiError(
+        409,
+        `${open.consultationId} is open for this appointment — the patient is with the doctor. The consultation has to be completed or cancelled first.`
+      );
+    }
   }
 
   const previousDoctorId = appointment.doctorId;

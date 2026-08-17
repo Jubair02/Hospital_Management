@@ -1,6 +1,7 @@
 import type { Types } from 'mongoose';
 import Consultation, {
   CONSULTATION_TRANSITIONS,
+  LIVE_CONSULTATION_STATUSES,
   type ConsultationDocument,
   type ConsultationStatus,
 } from '../models/Consultation.js';
@@ -26,6 +27,19 @@ export const requireDoctorProfile = async (userId: Types.ObjectId): Promise<Doct
   }
   return profile;
 };
+
+/**
+ * The open clinical record for an appointment, if a doctor is mid-visit.
+ *
+ * The appointment side of the app used to be blind to this: it would cancel,
+ * no-show, or reschedule an appointment out from under a consultation that was
+ * being written. Callers use this to refuse those changes while a record is
+ * open.
+ */
+export const findOpenConsultation = (
+  appointmentId: Types.ObjectId
+): Promise<ConsultationDocument | null> =>
+  Consultation.findOne({ appointmentId, status: 'in_progress' });
 
 /**
  * Moves the linked appointment through the EXISTING Phase 3 transition
@@ -89,8 +103,13 @@ export const startConsultation = async (
     throw new ApiError(400, 'This patient record is inactive.');
   }
 
-  // Friendly pre-check; the unique index remains the real guarantee.
-  const existing = await Consultation.findOne({ appointmentId: appointment._id });
+  // Friendly pre-check; the unique index remains the real guarantee. Cancelled
+  // records are ignored on both — a cancelled consultation frees its
+  // appointment for a fresh start.
+  const existing = await Consultation.findOne({
+    appointmentId: appointment._id,
+    status: { $in: LIVE_CONSULTATION_STATUSES },
+  });
   if (existing) {
     throw new ApiError(409, `This appointment already has consultation ${existing.consultationId}.`);
   }
@@ -191,6 +210,15 @@ export const transitionConsultation = async (
     );
   }
 
+  /**
+   * Completion writes two documents. Both are validated before either is
+   * saved: the record used to be persisted as completed — and therefore
+   * locked — before the appointment transition was attempted, so an
+   * appointment closed underneath the doctor produced an error response on
+   * work that had in fact been committed and could no longer be edited.
+   */
+  let appointmentToComplete: AppointmentDocument | null = null;
+
   if (target === 'completed') {
     const missing = COMPLETION_REQUIREMENTS.filter(([, ok]) => !ok(consultation)).map(
       ([label]) => label
@@ -198,16 +226,24 @@ export const transitionConsultation = async (
     if (missing.length) {
       throw new ApiError(400, `Complete the clinical record first. Missing: ${missing.join(', ')}.`);
     }
+
+    const appointment = await Appointment.findById(consultation.appointmentId);
+    if (appointment && appointment.status !== 'completed') {
+      if (!STATUS_TRANSITIONS[appointment.status].includes('completed')) {
+        throw new ApiError(
+          409,
+          `The linked appointment is ${appointment.status}, so this consultation cannot be completed. Nothing was saved — your notes are intact.`
+        );
+      }
+      appointmentToComplete = appointment;
+    }
   }
 
   consultation.status = target;
   await consultation.save();
 
-  if (target === 'completed') {
-    const appointment = await Appointment.findById(consultation.appointmentId);
-    if (appointment && appointment.status !== 'completed') {
-      await transitionAppointment(appointment, 'completed');
-    }
+  if (appointmentToComplete) {
+    await transitionAppointment(appointmentToComplete, 'completed');
   }
 
   return consultation;

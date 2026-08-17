@@ -14,6 +14,7 @@ import Notification from '../models/Notification.js';
 import Patient from '../models/Patient.js';
 import Payment from '../models/Payment.js';
 import StockTransaction from '../models/StockTransaction.js';
+import Ward from '../models/Ward.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -27,7 +28,7 @@ interface CreateUserBody {
   role: Role;
 }
 
-type UpdateUserBody = Partial<CreateUserBody>;
+type UpdateUserBody = Partial<CreateUserBody> & { assignedWards?: string[] };
 
 const queryString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -218,6 +219,23 @@ export const updateUser = asyncHandler(async (req, res) => {
         `Update ${demographic.join(', ')} on the patient's record — a portal login only holds their sign-in details.`
       );
     }
+  }
+
+  /**
+   * Ward assignment is a nursing concept. Accepting it for other roles would
+   * store a field nothing reads and imply a scoping rule that does not exist.
+   */
+  if (body.assignedWards !== undefined) {
+    const targetRole = body.role ?? user.role;
+    if (targetRole !== 'nurse') {
+      throw new ApiError(400, 'Only nurses are assigned to wards.');
+    }
+
+    const wards = await Ward.find({ _id: { $in: body.assignedWards } }).select('_id');
+    if (wards.length !== new Set(body.assignedWards).size) {
+      throw new ApiError(400, 'One or more of those wards do not exist.');
+    }
+    user.assignedWards = wards.map((ward) => ward._id);
   }
 
   const allowed = ['firstName', 'lastName', 'email', 'phone', 'role', 'password'] as const;

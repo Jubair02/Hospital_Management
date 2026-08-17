@@ -1,4 +1,4 @@
-import mongoose, { Schema, type HydratedDocument, type Model } from 'mongoose';
+import mongoose, { Schema, type HydratedDocument, type Model, type Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export const ROLES = [
@@ -38,6 +38,18 @@ export interface IUser {
   password: string;
   phone: string;
   role: Role;
+  /**
+   * The wards a nurse is responsible for.
+   *
+   * Nothing linked a nurse to anywhere in the hospital, so every list they
+   * opened was hospital-wide and "my patients" could not be expressed. An
+   * empty array keeps exactly that behaviour — an unassigned nurse still sees
+   * everything, so assigning wards is an opt-in narrowing rather than a
+   * migration that hides records from people who had them yesterday.
+   *
+   * Only meaningful for nurses; other roles are scoped by their own rules.
+   */
+  assignedWards: Types.ObjectId[];
   /**
    * Account state. `isActive` is kept in sync with it (see the pre-save
    * hook) so all pre-existing code and APIs keep working; only `active`
@@ -107,6 +119,10 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods, Record<string, nev
         values: ROLES as unknown as string[],
         message: `Role must be one of: ${ROLES.join(', ')}`,
       },
+    },
+    assignedWards: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Ward' }],
+      default: [],
     },
     status: {
       type: String,

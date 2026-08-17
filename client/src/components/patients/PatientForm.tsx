@@ -7,7 +7,7 @@ import {
   type Gender,
   type Patient,
 } from '../../types';
-import { toDateInputValue } from '../../utils/date';
+import { localDay, toDateInputValue } from '../../utils/date';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Select, { type SelectOption } from '../ui/Select';
@@ -197,7 +197,7 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {submitError && <Alert tone="error">{submitError}</Alert>}
 
-      <Card title="Personal information">
+      <Card title="Personal information" subtitle="How this person is identified." icon="users">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input
             label={<>First name{required}</>}
@@ -218,7 +218,7 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
             value={form.dateOfBirth}
             onChange={setField('dateOfBirth')}
             error={errors.dateOfBirth}
-            max={new Date().toISOString().slice(0, 10)}
+            max={localDay()}
           />
           <Select
             label={<>Gender{required}</>}
@@ -244,7 +244,7 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
         </div>
       </Card>
 
-      <Card title="Contact information">
+      <Card title="Contact information" subtitle="How the hospital reaches them." icon="patients">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input
             label={<>Phone{required}</>}
@@ -266,11 +266,12 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
             value={form.address}
             onChange={setField('address')}
             hint="Optional"
+            className="sm:col-span-2 lg:col-span-1 xl:col-span-2"
           />
         </div>
       </Card>
 
-      <Card title="Emergency contact">
+      <Card title="Emergency contact" subtitle="Who to call if they cannot be reached." icon="alert">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input
             label="Contact name"
@@ -293,7 +294,7 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
         </div>
       </Card>
 
-      <Card title="Additional information">
+      <Card title="Additional information" subtitle="Optional background." icon="clipboard">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select
             label="Marital status"
@@ -306,7 +307,7 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
         </div>
       </Card>
 
-      <Card title="Medical information" subtitle="One entry per line">
+      <Card title="Medical information" subtitle="One entry per line." icon="activity">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Textarea
             label="Allergies"
@@ -325,13 +326,30 @@ export default function PatientForm({ patient, submitLabel, onSubmit, onCancel }
         </div>
       </Card>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button type="submit" loading={saving}>
-          {saving ? 'Saving…' : submitLabel}
-        </Button>
+      {/* Pinned to the bottom of the viewport while the form is longer than
+          it. Five groups of fields meant the save button lived below the fold
+          on every screen, so finishing the task required scrolling past
+          everything you had just filled in. */}
+      <div className="sticky bottom-0 -mx-1 px-1 pb-1 pt-2">
+        <div className="surface-card flex flex-col gap-3 p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">
+            Fields marked <span aria-hidden="true" className="text-rose-500">*</span> are required.
+          </p>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={onCancel}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="w-full sm:w-auto" loading={saving}>
+              {saving ? 'Saving…' : submitLabel}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

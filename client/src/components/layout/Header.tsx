@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useSettings from '../../hooks/useSettings';
 import { ROLE_LABELS } from '../../utils/constants';
+import type { Role } from '../../types';
 import Badge, { ROLE_TONES } from '../ui/Badge';
 import Icon, { LogoMark } from '../ui/icons';
 
@@ -10,6 +11,21 @@ interface HeaderProps {
   unreadCount: number;
   onOpenSidebar: () => void;
 }
+
+/**
+ * Where "Settings" goes for the signed-in role.
+ *
+ * Staff get `/settings` — their own account, including the password form.
+ * Patients get the portal profile, which edits the Patient record their login
+ * is attached to rather than the login itself. Hospital-wide configuration
+ * lives behind `/admin/settings` and is linked from within `/settings`, so an
+ * administrator's personal page and the institution's are never the same
+ * screen.
+ */
+const settingsPathFor = (role: Role | null): string | null => {
+  if (!role) return null;
+  return role === 'patient' ? '/patient/profile' : '/settings';
+};
 
 /** "Thu, 13 Aug 2026" — the shift date, useful context on every screen. */
 const today = (): string =>
@@ -69,9 +85,10 @@ export default function Header({ unreadCount, onOpenSidebar }: HeaderProps) {
   }, [menuOpen]);
 
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
+  const settingsPath = settingsPathFor(role);
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur-md sm:px-6 lg:px-8 print:hidden">
       <button
         type="button"
         onClick={onOpenSidebar}
@@ -169,6 +186,18 @@ export default function Header({ unreadCount, onOpenSidebar }: HeaderProps) {
                     </span>
                   )}
                 </Link>
+                {settingsPath && (
+                  <Link
+                    to={settingsPath}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+                  >
+                    <Icon name="cog" className="h-4 w-4 text-slate-400" />
+                    Settings
+                  </Link>
+                )}
+
                 <button
                   type="button"
                   role="menuitem"

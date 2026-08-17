@@ -13,9 +13,19 @@ export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 /** Statuses that occupy the doctor's time and therefore block bookings. */
 export const BLOCKING_STATUSES: AppointmentStatus[] = ['scheduled', 'confirmed'];
 
-/** The transitions the API accepts — anything else is rejected. */
+/**
+ * The transitions the API accepts — anything else is rejected.
+ *
+ * `scheduled → no_show` matters more than it looks. Confirmation is no longer
+ * a button someone presses: an appointment becomes `confirmed` when its
+ * consultation is started, and `completed` when that consultation is
+ * finished. A patient who never arrives has no consultation, so their
+ * appointment is still `scheduled` — which is precisely when someone needs to
+ * record a no-show. Without this edge, the one status that describes "did not
+ * turn up" would be reachable only for patients who did.
+ */
 export const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
-  scheduled: ['confirmed', 'cancelled'],
+  scheduled: ['confirmed', 'cancelled', 'no_show'],
   confirmed: ['completed', 'cancelled', 'no_show'],
   completed: [],
   cancelled: [],

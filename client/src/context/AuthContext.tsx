@@ -26,6 +26,12 @@ export interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => void;
+  /**
+   * Replaces the cached user after they edit their own profile. The header
+   * renders their name, so without this the greeting keeps the old one until
+   * the next reload.
+   */
+  applyUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -127,6 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  const applyUser = useCallback((updated: User) => {
+    setUser(updated);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -135,8 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
+      applyUser,
     }),
-    [user, loading, login, logout]
+    [user, loading, login, logout, applyUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

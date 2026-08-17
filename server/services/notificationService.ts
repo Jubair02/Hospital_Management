@@ -105,6 +105,41 @@ export const notifyDoctor = async (
 };
 
 /**
+ * Notifies every nurse covering a ward.
+ *
+ * Nursing had no inbox at all: critical results, admissions arriving on the
+ * ward, and discharge orders reached doctors and patients and nobody on the
+ * ward floor. Delivery is per-ward rather than per-person because nursing is
+ * covered by a shift, not owned by an individual — whoever is assigned when it
+ * happens is who needs to know.
+ *
+ * Nurses with no wards assigned are hospital-wide readers by design, but they
+ * are deliberately NOT notified here: an unassigned nurse would otherwise
+ * receive every alert in the building.
+ *
+ * Never throws — an alert that cannot be delivered must not fail the clinical
+ * action that raised it.
+ */
+export const notifyWardNurses = async (
+  wardId: Types.ObjectId,
+  input: Omit<NotifyInput, 'recipientId'>
+): Promise<void> => {
+  try {
+    const nurses = await User.find({
+      role: 'nurse',
+      status: 'active',
+      assignedWards: wardId,
+    }).select('_id');
+
+    await Promise.all(
+      nurses.map((nurse) => createNotification({ ...input, recipientId: nurse._id }))
+    );
+  } catch (err) {
+    logger.warn(`Ward notification failed: ${err instanceof Error ? err.message : 'unknown'}`);
+  }
+};
+
+/**
  * Notifies the portal user behind a patient record, if one is linked.
  * Never throws — patients without portal accounts simply receive
  * nothing, and a notification failure never fails the business action.

@@ -9,6 +9,8 @@ import PatientForm from '../../components/patients/PatientForm';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import Alert from '../../components/ui/Alert';
 import Button from '../../components/ui/Button';
+import Icon from '../../components/ui/icons';
+import PageHeader from '../../components/ui/PageHeader';
 
 export default function PatientEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,16 +63,26 @@ export default function PatientEditPage() {
     );
   }
 
+  const fullName = `${patient.firstName} ${patient.lastName}`;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Edit patient
-          <span className="ml-3 text-base font-normal text-slate-500">{patient.patientId}</span>
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Fields marked <span className="text-rose-500">*</span> are required.
-        </p>
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <div className="space-y-3">
+        {/* Back to the record being edited rather than the whole list — that
+            is where this page is reached from, and where Cancel returns to. */}
+        <Link
+          to={`/patients/${patient._id}`}
+          className="-ml-1 inline-flex min-h-8 items-center gap-1 rounded-lg px-1 text-sm font-medium text-slate-500 transition-colors duration-200 hover:text-slate-900"
+        >
+          <Icon name="chevronLeft" className="h-4 w-4" strokeWidth="2.2" />
+          {fullName}
+        </Link>
+
+        <PageHeader
+          eyebrow={`Patient · ${patient.patientId}`}
+          title="Edit patient"
+          subtitle="Changes apply to the record everyone sees. The patient ID and registration date cannot be changed."
+        />
       </div>
 
       <PatientForm

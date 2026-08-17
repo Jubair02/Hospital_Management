@@ -15,6 +15,8 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { AdmissionStatusBadge } from '../../components/inpatient/InpatientBadges';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
+import { canViewInpatientDashboard } from '../../utils/permissions';
 
 export default function AdmissionsPage() {
   const { role } = useAuth();
@@ -122,70 +124,113 @@ export default function AdmissionsPage() {
     },
   ];
 
+  // Read from the live inputs so the control appears on the keystroke
+  // rather than after the search debounce.
+  const hasFilters = Boolean(searchInput || statusFilter || wardFilter || date);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setStatusFilter('');
+    setWardFilter('');
+    setDate('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={role === 'doctor' ? 'My inpatients' : 'Admissions'}
-        subtitle={
-          role === 'doctor'
-            ? 'Admitted patients under your care.'
-            : 'Inpatient admissions, newest first.'
-        }
-        actions={
-          canAdmit && (
-            <Link to="/inpatient/admissions/new">
-              <Button>Admit patient</Button>
-            </Link>
-          )
-        }
-      />
+      <div className="space-y-3">
+        {canViewInpatientDashboard(role) && (
+          <BackLink to="/inpatient" label="Inpatient" />
+        )}
+
+        <PageHeader
+          title={role === 'doctor' ? 'My inpatients' : 'Admissions'}
+          subtitle={
+            role === 'doctor'
+              ? 'Admitted patients under your care.'
+              : 'Inpatient admissions, newest first.'
+          }
+          actions={
+            canAdmit && (
+              <Link to="/inpatient/admissions/new">
+                <Button>Admit patient</Button>
+              </Link>
+            )
+          }
+        />
+      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Input
-            placeholder="Search admission ID or patient…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label="Search admissions"
-            className="lg:col-span-2"
-          />
-          <Select
-            aria-label="Filter by status"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            options={[
-              { value: 'admitted', label: 'Admitted' },
-              { value: 'transferred', label: 'Transferred' },
-              { value: 'discharged', label: 'Discharged' },
-              { value: 'cancelled', label: 'Cancelled' },
-            ]}
-            placeholder="All statuses"
-          />
-          <Select
-            aria-label="Filter by ward"
-            value={wardFilter}
-            onChange={(e) => {
-              setWardFilter(e.target.value);
-              setPage(1);
-            }}
-            options={wards.map((w) => ({ value: w._id, label: w.name }))}
-            placeholder="All wards"
-          />
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter by admission date"
-          />
+      <Card padded={false}>
+        <div className="p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Input
+              placeholder="Search admission ID or patient…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search admissions"
+              className="lg:col-span-2"
+            />
+            <Select
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'admitted', label: 'Admitted' },
+                { value: 'transferred', label: 'Transferred' },
+                { value: 'discharged', label: 'Discharged' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+              placeholder="All statuses"
+            />
+            <Select
+              aria-label="Filter by ward"
+              value={wardFilter}
+              onChange={(e) => {
+                setWardFilter(e.target.value);
+                setPage(1);
+              }}
+              options={wards.map((w) => ({ value: w._id, label: w.name }))}
+              placeholder="All wards"
+            />
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by admission date"
+            />
+          </div>
         </div>
+
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-slate-50/60 px-4 py-2.5 text-xs text-slate-500">
+            <span aria-live="polite">
+              {loading
+                ? 'Searching\u2026'
+                : `${pagination.total.toLocaleString()} ${
+                    pagination.total === 1 ? 'admission matches' : 'admissions match'
+                  }`}
+            </span>
+            <span className="text-slate-300" aria-hidden="true">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="font-semibold text-brand-700 transition-colors duration-200 hover:text-brand-800"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </Card>
 
       <Table

@@ -41,6 +41,13 @@ router.use(authenticate);
 
 const OPERATORS = ['admin', 'receptionist'] as const;
 const READERS = ['admin', 'receptionist', 'doctor', 'nurse'] as const;
+/**
+ * Whether a bed is occupied, free, or needs cleaning is observed on the ward,
+ * and nurses are the staff standing there when it changes. Admitting and
+ * discharging stay with OPERATORS — those are administrative decisions about
+ * a stay, not a report of the state of a bed.
+ */
+const BED_STATUS_ROLES = ['admin', 'receptionist', 'nurse'] as const;
 
 // --- Wards ---
 router
@@ -59,7 +66,12 @@ router
   .get(authorize(...READERS), getBeds)
   .post(authorize('admin'), validateBed(false), createBed);
 router.patch('/beds/:id', authorize('admin'), validateBed(true), updateBed);
-router.patch('/beds/:id/status', authorize(...OPERATORS), validateBedStatus, updateBedStatus);
+router.patch(
+  '/beds/:id/status',
+  authorize(...BED_STATUS_ROLES),
+  validateBedStatus,
+  updateBedStatus
+);
 
 // --- Admissions ---
 router

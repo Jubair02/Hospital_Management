@@ -182,6 +182,25 @@ describe('POST /api/consultations (start)', () => {
     expect(results.filter((s) => s === 201)).toHaveLength(1);
     expect(await Consultation.countDocuments({ appointmentId: freshId })).toBe(1);
   });
+
+  it('still carries vitalSigns when read back after the create response', async () => {
+    // A consultation starts with no vitals recorded. Mongoose minimizes empty
+    // objects away on save, so the field survived the create response and then
+    // vanished on the next read — the workbench crashed reopening its own
+    // record and offered "Start" again, which could only 409.
+    const created = await start().expect(201);
+    expect(created.body.data.consultation.vitalSigns).toBeDefined();
+
+    const id = created.body.data.consultation._id as string;
+    const reread = await request(app).get(`/api/consultations/${id}`).set(asDoctor()).expect(200);
+    expect(reread.body.data.consultation.vitalSigns).toBeDefined();
+
+    const listed = await request(app)
+      .get(`/api/consultations?appointmentId=${appointmentMongoId}&limit=1`)
+      .set(asDoctor())
+      .expect(200);
+    expect(listed.body.data.consultations[0].vitalSigns).toBeDefined();
+  });
 });
 
 describe('PATCH /api/consultations/:id (clinical record)', () => {
@@ -331,6 +350,88 @@ describe('completing a consultation', () => {
 
   it('rejects an unknown status with 400', async () => {
     await setStatus('archived').expect(400);
+  });
+
+  it('leaves the record untouched when the appointment cannot be completed', async () => {
+    // The consultation used to be saved as completed — and so locked — before
+    // the appointment transition was attempted, so this returned an error on
+    // work that had already been committed.
+    await request(app)
+      .patch(`/api/consultations/${consultationId}`)
+      .set(asDoctor())
+      .send(CLINICAL_RECORD)
+      .expect(200);
+
+    // Reach past the API guard to recreate the race it now prevents.
+    await Appointment.findByIdAndUpdate(appointmentMongoId, { status: 'cancelled' });
+
+    const res = await setStatus('completed').expect(409);
+    expect(res.body.message).toMatch(/nothing was saved/i);
+
+    const stored = await Consultation.findById(consultationId);
+    expect(stored?.status).toBe('in_progress');
+  });
+});
+
+describe('appointment and consultation interlock', () => {
+  let consultationId: string;
+
+  beforeEach(async () => {
+    const res = await start().expect(201);
+    consultationId = (res.body.data.consultation as ConsultationJson)._id;
+  });
+
+  const setAppointmentStatus = (status: string) =>
+    request(app)
+      .patch(`/api/appointments/${appointmentMongoId}/status`)
+      .set({ Authorization: `Bearer ${adminToken}` })
+      .send({ status });
+
+  it('refuses to cancel or no-show an appointment while its consultation is open', async () => {
+    for (const status of ['cancelled', 'no_show']) {
+      const res = await setAppointmentStatus(status).expect(409);
+      expect(res.body.message).toMatch(/CON-\d+ is open/);
+    }
+    expect((await Appointment.findById(appointmentMongoId))?.status).toBe('confirmed');
+
+    // Closing the record releases the appointment again.
+    await request(app)
+      .patch(`/api/consultations/${consultationId}/status`)
+      .set(asDoctor())
+      .send({ status: 'cancelled' })
+      .expect(200);
+    await setAppointmentStatus('no_show').expect(200);
+  });
+
+  it('refuses to reschedule while a consultation is open, but still allows notes', async () => {
+    await request(app)
+      .patch(`/api/appointments/${appointmentMongoId}`)
+      .set({ Authorization: `Bearer ${adminToken}` })
+      .send({ startTime: '14:00', endTime: '14:30' })
+      .expect(409);
+
+    await request(app)
+      .patch(`/api/appointments/${appointmentMongoId}`)
+      .set({ Authorization: `Bearer ${adminToken}` })
+      .send({ notes: 'Patient arrived late.' })
+      .expect(200);
+  });
+
+  it('a cancelled consultation releases its appointment for a fresh start', async () => {
+    await request(app)
+      .patch(`/api/consultations/${consultationId}/status`)
+      .set(asDoctor())
+      .send({ status: 'cancelled' })
+      .expect(200);
+
+    // Previously a plain unique index made this 409 forever: the appointment
+    // could never be consulted again and never be closed.
+    const restarted = await start().expect(201);
+    expect(restarted.body.data.consultation._id).not.toBe(consultationId);
+    expect(await Consultation.countDocuments({ appointmentId: appointmentMongoId })).toBe(2);
+
+    // The live record is still unique — a second start is refused.
+    await start().expect(409);
   });
 });
 

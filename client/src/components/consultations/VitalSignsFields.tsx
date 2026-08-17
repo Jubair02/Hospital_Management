@@ -15,7 +15,10 @@ export const emptyVitals: VitalSignsFormState = {
   height: '',
 };
 
-export const vitalsFromConsultation = (vitals: VitalSigns): VitalSignsFormState => ({
+/** Tolerates an absent group: nothing measured reads the same as no container. */
+export const vitalsFromConsultation = (
+  vitals: VitalSigns | undefined = {}
+): VitalSignsFormState => ({
   temperature: vitals.temperature?.toString() ?? '',
   heartRate: vitals.heartRate?.toString() ?? '',
   bloodPressureSystolic: vitals.bloodPressureSystolic?.toString() ?? '',
@@ -89,21 +92,25 @@ export function VitalSignsFields({ value, onChange }: VitalSignsFieldsProps) {
 }
 
 /** Read-only vitals summary. */
-export function VitalSignsCard({ vitals }: { vitals: VitalSigns }) {
+export function VitalSignsCard({ vitals = {} }: { vitals?: VitalSigns }) {
   const entries = (Object.keys(FIELD_LABELS) as Array<keyof VitalSigns>).filter(
     (key) => vitals[key] !== undefined && vitals[key] !== null
   );
 
   if (entries.length === 0) {
-    return <p className="text-sm text-slate-400">No vital signs recorded.</p>;
+    return <p className="text-sm text-slate-500">No vital signs recorded.</p>;
   }
 
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
       {entries.map((key) => (
-        <div key={key}>
-          <dt className="text-xs text-slate-500">{FIELD_LABELS[key]}</dt>
-          <dd className="mt-0.5 text-sm font-semibold text-slate-800">{vitals[key]}</dd>
+        <div key={key} className="min-w-0">
+          <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            {FIELD_LABELS[key]}
+          </dt>
+          <dd className="mt-0.5 text-[0.9375rem] font-semibold tabular-nums text-slate-900">
+            {vitals[key]}
+          </dd>
         </div>
       ))}
     </dl>

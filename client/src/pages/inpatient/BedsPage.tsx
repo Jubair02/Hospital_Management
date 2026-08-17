@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import { getBeds, getWards } from '../../services/inpatientService';
 import { getErrorMessage } from '../../services/api';
 import type { HospitalBed, Ward, Pagination as PaginationInfo } from '../../types';
@@ -12,8 +13,12 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { BedStatusBadge } from '../../components/inpatient/InpatientBadges';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
+import { canViewInpatientDashboard } from '../../utils/permissions';
 
 export default function BedsPage() {
+  const { role } = useAuth();
+
   const [beds, setBeds] = useState<HospitalBed[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -109,44 +114,84 @@ export default function BedsPage() {
     },
   ];
 
+  // Read from the live inputs so the control appears on the keystroke
+  // rather than after the search debounce.
+  const hasFilters = Boolean(wardFilter || statusFilter);
+
+  const clearFilters = () => {
+    setWardFilter('');
+    setStatusFilter('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Beds"
-        subtitle="All beds across the hospital."
-      />
+      <div className="space-y-3">
+        {canViewInpatientDashboard(role) && (
+          <BackLink to="/inpatient" label="Inpatient" />
+        )}
+
+        <PageHeader
+          title="Beds"
+          subtitle="All beds across the hospital."
+        />
+      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Select
-            aria-label="Filter by ward"
-            value={wardFilter}
-            onChange={(e) => {
-              setWardFilter(e.target.value);
-              setPage(1);
-            }}
-            options={wards.map((w) => ({ value: w._id, label: w.name }))}
-            placeholder="All wards"
-          />
-          <Select
-            aria-label="Filter by status"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            options={[
-              { value: 'available', label: 'Available' },
-              { value: 'occupied', label: 'Occupied' },
-              { value: 'reserved', label: 'Reserved' },
-              { value: 'maintenance', label: 'Maintenance' },
-              { value: 'inactive', label: 'Inactive' },
-            ]}
-            placeholder="All statuses"
-          />
+      <Card padded={false}>
+        <div className="p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Select
+              aria-label="Filter by ward"
+              value={wardFilter}
+              onChange={(e) => {
+                setWardFilter(e.target.value);
+                setPage(1);
+              }}
+              options={wards.map((w) => ({ value: w._id, label: w.name }))}
+              placeholder="All wards"
+            />
+            <Select
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'available', label: 'Available' },
+                { value: 'occupied', label: 'Occupied' },
+                { value: 'reserved', label: 'Reserved' },
+                { value: 'maintenance', label: 'Maintenance' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+              placeholder="All statuses"
+            />
+          </div>
         </div>
+
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-slate-50/60 px-4 py-2.5 text-xs text-slate-500">
+            <span aria-live="polite">
+              {loading
+                ? 'Searching\u2026'
+                : `${pagination.total.toLocaleString()} ${
+                    pagination.total === 1 ? 'bed matches' : 'beds match'
+                  }`}
+            </span>
+            <span className="text-slate-300" aria-hidden="true">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="font-semibold text-brand-700 transition-colors duration-200 hover:text-brand-800"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </Card>
 
       <Table

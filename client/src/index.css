@@ -224,6 +224,26 @@
   }
 }
 
+/* Paper. Reached from the Print action on an invoice, where the shell has
+ * already been hidden with `print:hidden` — this only flattens what remains so
+ * the record reads as a document rather than as a screenshot of the app. */
+@media print {
+  body {
+    background-color: #fff;
+  }
+
+  .surface-card {
+    border-color: var(--color-line-strong);
+    box-shadow: none;
+  }
+
+  /* A table that breaks across a page boundary mid-row is unreadable. */
+  tr,
+  li {
+    break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -10,6 +10,7 @@ import {
 } from '../../types';
 import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
+import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
@@ -17,6 +18,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import { PaymentRecordBadge, methodLabel } from '../../components/billing/BillingBadges';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<BillingPayment[]>([]);
@@ -70,11 +72,41 @@ export default function PaymentsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  const filtered = Boolean(search || method || status || date);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setMethod('');
+    setStatus('');
+    setDate('');
+    setPage(1);
+  };
+
   const columns: Column<BillingPayment>[] = [
     {
       key: 'paymentId',
       header: 'Payment',
-      render: (p) => <span className="font-medium text-brand-800">{p.paymentId}</span>,
+      render: (p) => (
+        <div className="min-w-0">
+          <p className="font-semibold tabular-nums text-slate-900">{p.paymentId}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{formatDate(p.paidAt)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'patient',
+      header: 'Patient',
+      render: (p) =>
+        p.patientId ? (
+          <div className="min-w-0">
+            <p className="truncate font-medium text-slate-800">
+              {p.patientId.firstName} {p.patientId.lastName}
+            </p>
+            <p className="mt-0.5 text-xs tabular-nums text-slate-500">{p.patientId.patientId}</p>
+          </div>
+        ) : (
+          <span className="text-slate-400">—</span>
+        ),
     },
     {
       key: 'invoice',
@@ -83,46 +115,65 @@ export default function PaymentsPage() {
         typeof p.invoiceId === 'object' && p.invoiceId ? (
           <Link
             to={`/billing/invoices/${p.invoiceId._id}`}
-            className="text-brand-800 hover:underline"
+            className="tabular-nums font-medium text-brand-800 transition-colors hover:text-brand-900 hover:underline"
           >
             {p.invoiceId.invoiceId}
           </Link>
         ) : (
-          '—'
+          <span className="text-slate-400">—</span>
         ),
-    },
-    {
-      key: 'patient',
-      header: 'Patient',
-      render: (p) =>
-        p.patientId ? `${p.patientId.firstName} ${p.patientId.lastName}` : '—',
     },
     {
       key: 'amount',
       header: 'Amount',
+      className: 'text-right',
       render: (p) => (
-        <span className={p.type === 'refund' ? 'font-semibold text-rose-600' : 'font-semibold text-slate-800'}>
+        <span
+          className={`font-semibold tabular-nums ${
+            p.type === 'refund' ? 'text-rose-600' : 'text-slate-900'
+          }`}
+        >
           {p.type === 'refund' ? '−' : ''}
           {formatMoney(p.amount)}
         </span>
       ),
     },
-    { key: 'method', header: 'Method', render: (p) => methodLabel(p.method) },
-    { key: 'status', header: 'Status', render: (p) => <PaymentRecordBadge status={p.status} type={p.type} /> },
     {
+      key: 'method',
+      header: 'Method',
+      render: (p) => <span className="text-slate-600">{methodLabel(p.method)}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (p) => <PaymentRecordBadge status={p.status} type={p.type} />,
+    },
+    {
+      // Useful for reconciling a till, and not worth a column on a laptop —
+      // the stacked card view below `md` shows it regardless of this class.
       key: 'receivedBy',
       header: 'Received by',
-      render: (p) => (p.receivedBy ? `${p.receivedBy.firstName} ${p.receivedBy.lastName}` : '—'),
+      className: 'hidden xl:table-cell',
+      render: (p) =>
+        p.receivedBy ? (
+          `${p.receivedBy.firstName} ${p.receivedBy.lastName}`
+        ) : (
+          <span className="text-slate-400">—</span>
+        ),
     },
-    { key: 'paidAt', header: 'Date', render: (p) => formatDate(p.paidAt) },
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Payments"
-        subtitle="The money ledger — payments and refunds."
-      />
+      <div className="space-y-3">
+        <BackLink to="/billing" label="Billing" />
+
+        <PageHeader
+          eyebrow="Billing"
+          title="Payments"
+          subtitle="The money ledger — every payment taken and every refund given back."
+        />
+      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
 
@@ -166,9 +217,24 @@ export default function PaymentsPage() {
               setDate(e.target.value);
               setPage(1);
             }}
-            aria-label="Filter by date"
+            aria-label="Filter by payment date"
           />
         </div>
+
+        {filtered && (
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3.5">
+            <p className="text-xs text-slate-500">
+              {loading
+                ? 'Searching…'
+                : `${pagination.total.toLocaleString()} matching record${
+                    pagination.total === 1 ? '' : 's'
+                  }`}
+            </p>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          </div>
+        )}
       </Card>
 
       <Table
@@ -176,7 +242,27 @@ export default function PaymentsPage() {
         rows={payments}
         loading={loading}
         emptyState={
-          <EmptyState title="No payments found" description="Payments appear here once recorded." />
+          <EmptyState
+            title={filtered ? 'No payments match these filters' : 'No payments yet'}
+            description={
+              filtered
+                ? 'Widen the search, or clear the filters to see the whole ledger.'
+                : 'Payments appear here as soon as one is recorded against an invoice.'
+            }
+            action={
+              filtered ? (
+                <Button size="sm" variant="secondary" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : (
+                <Link to="/billing/invoices">
+                  <Button size="sm" variant="secondary">
+                    Open invoices
+                  </Button>
+                </Link>
+              )
+            }
+          />
         }
         footer={
           <Pagination

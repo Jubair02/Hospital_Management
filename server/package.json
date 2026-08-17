@@ -14,6 +14,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed:admin": "tsx scripts/seedAdmin.ts",
+    "sync:indexes": "tsx scripts/syncConsultationIndexes.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

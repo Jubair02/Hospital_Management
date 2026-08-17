@@ -60,3 +60,35 @@ export const toDateInputValue = (value: string | undefined): string => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 };
+
+/**
+ * Today — or a day either side of it — as the local calendar date.
+ *
+ * Deliberately not `toISOString().slice(0, 10)`, which converts to UTC first.
+ * The hospital's default timezone is six hours ahead of it, so between
+ * midnight and 06:00 local that returns *yesterday*: a `min` on a date input
+ * would quietly permit a date in the past, and a "Today" shortcut would fill
+ * in the wrong day for anyone working a night shift.
+ */
+export const localDay = (offsetDays = 0): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/**
+ * A date-only value that falls before today, in local time.
+ *
+ * Compared as calendar dates, not instants: an appointment at 09:00 this
+ * morning is not overdue at 14:00 — the day is still running. Yesterday's is.
+ */
+export const isBeforeToday = (value: string | undefined): boolean => {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return midnight(date) < midnight(new Date());
+};

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import { DASHBOARD_PATHS, ROLES } from '../utils/constants';
+import { DASHBOARD_PATHS, ROLES, STAFF_ROLES } from '../utils/constants';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -9,7 +9,6 @@ import FullPageSpinner from '../components/ui/FullPageSpinner';
 import LoginPage from '../pages/LoginPage';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import UsersPage from '../pages/admin/UsersPage';
-import AdminPanelPage from '../pages/admin/AdminPanelPage';
 import AuditLogsPage from '../pages/admin/AuditLogsPage';
 import SystemSettingsPage from '../pages/admin/SystemSettingsPage';
 import SystemHealthPage from '../pages/admin/SystemHealthPage';
@@ -81,6 +80,7 @@ import PortalBillingPage from '../pages/portal/PortalBillingPage';
 import PortalInvoiceDetailsPage from '../pages/portal/PortalInvoiceDetailsPage';
 import PortalAdmissionPage from '../pages/portal/PortalAdmissionPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
+import SettingsPage from '../pages/SettingsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 /** Sends "/" to the right place for the current session. */
@@ -104,7 +104,6 @@ export default function AppRoutes() {
         <Route element={<DashboardLayout />}>
           {/* Admin */}
           <Route element={<RoleRoute allow={[ROLES.ADMIN]} />}>
-            <Route path="/admin" element={<AdminPanelPage />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
@@ -117,8 +116,20 @@ export default function AppRoutes() {
             <Route path="/admin/doctors/:id" element={<DoctorProfilePage />} />
             <Route path="/admin/doctors/:id/edit" element={<DoctorEditPage />} />
             <Route path="/admin/departments" element={<DepartmentsPage />} />
+          </Route>
+
+          {/* Appointments — one page, two URLs.
+              These screens are identical for an administrator and a
+              receptionist, but each role prefix used to be locked to its own
+              role, so opening the other one's link dead-ended on the
+              Unauthorized page even though the reader was entitled to the
+              page. Both prefixes now answer for both roles; the prefix is
+              cosmetic, the permission is what is actually checked. */}
+          <Route element={<RoleRoute allow={[ROLES.ADMIN, ROLES.RECEPTIONIST]} />}>
             <Route path="/admin/appointments" element={<AppointmentsListPage />} />
             <Route path="/admin/appointments/new" element={<AppointmentCreatePage />} />
+            <Route path="/receptionist/appointments" element={<AppointmentsListPage />} />
+            <Route path="/receptionist/appointments/new" element={<AppointmentCreatePage />} />
           </Route>
 
           {/* Doctor */}
@@ -140,8 +151,6 @@ export default function AppRoutes() {
             <Route path="/receptionist/patients" element={<PatientsListPage />} />
             <Route path="/receptionist/patients/new" element={<PatientCreatePage />} />
             <Route path="/receptionist/doctors" element={<DoctorsListPage />} />
-            <Route path="/receptionist/appointments" element={<AppointmentsListPage />} />
-            <Route path="/receptionist/appointments/new" element={<AppointmentCreatePage />} />
           </Route>
 
           {/* Nurse */}
@@ -259,6 +268,13 @@ export default function AppRoutes() {
 
           {/* Notifications — every authenticated user has an inbox */}
           <Route path="/notifications" element={<NotificationsPage />} />
+
+          {/* Personal account settings. Staff only: a patient's details live on
+              their Patient record, and /patient/profile already edits them
+              against the portal's own endpoint. */}
+          <Route element={<RoleRoute allow={STAFF_ROLES} />}>
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
 
           {/* Patient portal — self-service pages, patient role only */}
           <Route element={<RoleRoute allow={[ROLES.PATIENT]} />}>

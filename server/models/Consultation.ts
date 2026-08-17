@@ -1,7 +1,17 @@
 import mongoose, { Schema, type HydratedDocument, type Model, type Types } from 'mongoose';
+import { vitalSignsSchema, type IVitalSigns } from './vitalSigns.js';
+
+export type { IVitalSigns };
 
 export const CONSULTATION_STATUSES = ['in_progress', 'completed', 'cancelled'] as const;
 export type ConsultationStatus = (typeof CONSULTATION_STATUSES)[number];
+
+/**
+ * The statuses that still hold a claim on their appointment. Shared by the
+ * uniqueness index and the queries that read it, so the two cannot drift:
+ * whatever counts as live for one has to count as live for the other.
+ */
+export const LIVE_CONSULTATION_STATUSES: ConsultationStatus[] = ['in_progress', 'completed'];
 
 /** The transitions the API accepts — completed/cancelled are terminal. */
 export const CONSULTATION_TRANSITIONS: Record<ConsultationStatus, ConsultationStatus[]> = {
@@ -12,17 +22,6 @@ export const CONSULTATION_TRANSITIONS: Record<ConsultationStatus, ConsultationSt
 
 export const DIAGNOSIS_TYPES = ['primary', 'secondary'] as const;
 export type DiagnosisType = (typeof DIAGNOSIS_TYPES)[number];
-
-export interface IVitalSigns {
-  temperature?: number;
-  heartRate?: number;
-  bloodPressureSystolic?: number;
-  bloodPressureDiastolic?: number;
-  respiratoryRate?: number;
-  oxygenSaturation?: number;
-  weight?: number;
-  height?: number;
-}
 
 export interface IDiagnosis {
   diagnosis: string;
@@ -63,34 +62,11 @@ export interface IConsultation {
 
 export type ConsultationDocument = HydratedDocument<IConsultation>;
 
-const positiveNumber = (label: string) => ({
-  type: Number,
-  min: [0, `${label} cannot be negative`],
-});
-
 const clinicalText = (max = 5000) => ({
   type: String,
   trim: true,
   maxlength: [max, `Text cannot exceed ${max} characters`] as [number, string],
 });
-
-const vitalSignsSchema = new Schema<IVitalSigns>(
-  {
-    temperature: positiveNumber('Temperature'),
-    heartRate: positiveNumber('Heart rate'),
-    bloodPressureSystolic: positiveNumber('Systolic blood pressure'),
-    bloodPressureDiastolic: positiveNumber('Diastolic blood pressure'),
-    respiratoryRate: positiveNumber('Respiratory rate'),
-    oxygenSaturation: {
-      type: Number,
-      min: [0, 'Oxygen saturation must be between 0 and 100'],
-      max: [100, 'Oxygen saturation must be between 0 and 100'],
-    },
-    weight: positiveNumber('Weight'),
-    height: positiveNumber('Height'),
-  },
-  { _id: false }
-);
 
 const diagnosisSchema = new Schema<IDiagnosis>(
   {
@@ -157,9 +133,8 @@ const consultationSchema = new Schema<IConsultation>(
       type: Schema.Types.ObjectId,
       ref: 'Appointment',
       required: [true, 'Appointment is required'],
-      // One consultation per appointment — enforced by the database, so
-      // concurrent "start consultation" requests cannot both succeed.
-      unique: true,
+      // Uniqueness is a partial index declared below, not a plain one: a
+      // cancelled consultation must release its appointment.
       immutable: true,
     },
     patientId: {
@@ -219,6 +194,14 @@ const consultationSchema = new Schema<IConsultation>(
   },
   {
     timestamps: true,
+    /**
+     * A consultation opens with nothing measured yet, so `vitalSigns` starts as
+     * its default empty object. Mongoose minimizes empty objects out of the
+     * document, which dropped the field from the API response entirely and made
+     * every client read of `vitalSigns.temperature` throw on a fresh record.
+     * The group is optional; its container is not.
+     */
+    minimize: false,
     toJSON: {
       virtuals: true,
       transform(_doc, ret: Record<string, unknown>) {
@@ -227,6 +210,20 @@ const consultationSchema = new Schema<IConsultation>(
       },
     },
   }
+);
+
+/**
+ * At most one *live* consultation per appointment.
+ *
+ * A plain unique index made cancellation permanent: the cancelled record kept
+ * its claim on the appointment, so starting again returned 409 forever and the
+ * appointment could never be consulted or closed. Excluding cancelled records
+ * lets a mistaken cancellation be redone, while still serialising concurrent
+ * starts at the database — the guarantee the index was there for.
+ */
+consultationSchema.index(
+  { appointmentId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: LIVE_CONSULTATION_STATUSES } } }
 );
 
 const Consultation: Model<IConsultation> = mongoose.model<IConsultation>(

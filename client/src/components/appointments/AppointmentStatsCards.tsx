@@ -40,8 +40,17 @@ const CARDS: Record<StatsView, CardSpec[]> = {
   ],
 };
 
+interface AppointmentStatsCardsProps {
+  view: StatsView;
+  /** Bumped by a dashboard's Refresh, so one control reloads every panel. */
+  refreshKey?: number;
+}
+
 /** Live appointment statistics; the API scopes doctor numbers server-side. */
-export default function AppointmentStatsCards({ view }: { view: StatsView }) {
+export default function AppointmentStatsCards({
+  view,
+  refreshKey = 0,
+}: AppointmentStatsCardsProps) {
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [error, setError] = useState('');
 
@@ -59,7 +68,7 @@ export default function AppointmentStatsCards({ view }: { view: StatsView }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   if (error) return <Alert tone="error">{error}</Alert>;
 

@@ -139,6 +139,59 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 /**
+ * PATCH /api/auth/me
+ * Private. Lets a signed-in staff member correct their own name and phone
+ * without going through an administrator.
+ *
+ * Patients are refused: their name and phone belong to the Patient record
+ * their login is attached to, not to the login, and the portal edits them
+ * there. Accepting them here would leave the two disagreeing about the same
+ * person — the same rule `updateUser` enforces from the admin side.
+ */
+export const updateOwnProfile = asyncHandler(async (req, res) => {
+  // Shape and field allow-list guaranteed by validateUpdateOwnProfile.
+  const body = req.body as { firstName?: string; lastName?: string; phone?: string };
+
+  const user = await User.findById(req.user!._id);
+  if (!user) {
+    throw new ApiError(401, 'The account for this session no longer exists.');
+  }
+
+  if (user.role === 'patient') {
+    throw new ApiError(
+      400,
+      'Update your details on your profile page — a portal login only holds your sign-in details.'
+    );
+  }
+
+  const changed: string[] = [];
+  for (const field of ['firstName', 'lastName', 'phone'] as const) {
+    const value = body[field];
+    if (value === undefined) continue;
+
+    const next = value.trim();
+    if (next === (user.get(field) ?? '')) continue;
+
+    user.set(field, next);
+    changed.push(field);
+  }
+
+  if (changed.length > 0) {
+    await user.save();
+
+    await req.audit({
+      action: 'user_updated',
+      resourceType: 'user',
+      resourceId: user._id,
+      description: `${user.role} updated their own ${changed.join(', ')}.`,
+      metadata: { fields: changed, self: true },
+    });
+  }
+
+  res.json({ success: true, message: 'Profile updated', data: { user } });
+});
+
+/**
  * POST /api/auth/change-password
  * Private — any authenticated user (staff or patient) may change their
  * OWN password after proving they know the current one. There is no

@@ -36,6 +36,20 @@ export const canEditAppointment = canCreateAppointment;
 
 export const canCancelAppointment = canCreateAppointment;
 
+/**
+ * Who may close an appointment out by hand.
+ *
+ * Completion normally happens on its own when a doctor finishes the
+ * consultation, so this is a fallback for the case that leaves a slot stuck:
+ * the patient was seen, but the clinical record was never completed. The front
+ * desk gets it because they are the ones reconciling the day's diary.
+ *
+ * Deliberately not doctors, even though the API would accept it from them — a
+ * doctor closing the appointment without finishing the consultation is the
+ * situation this exists to clean up, not a second way to do the same job.
+ */
+export const canMarkAppointmentCompleted = canCreateAppointment;
+
 export const canViewAppointmentStats = (role: Role | null): boolean =>
   role === 'admin' || role === 'receptionist' || role === 'doctor';
 
@@ -60,6 +74,16 @@ export const appointmentsListPath = (role: Role | null): string =>
 export const canAuthorConsultation = (role: Role | null): boolean => role === 'doctor';
 
 /** Receptionists have no clinical access at all. */
+/**
+ * Who may open the inpatient dashboard at `/inpatient`.
+ *
+ * Narrower than the rest of the module: doctors can read wards, beds and
+ * admissions but not the operations board, so anything linking *back* to it
+ * has to check first or it sends them to the Unauthorized page.
+ */
+export const canViewInpatientDashboard = (role: Role | null): boolean =>
+  role === 'admin' || role === 'receptionist' || role === 'nurse';
+
 export const canViewClinical = (role: Role | null): boolean =>
   role === 'admin' || role === 'doctor' || role === 'nurse';
 
@@ -77,6 +101,27 @@ export const canManagePharmacy = (role: Role | null): boolean =>
 /** Roles that use the shared patient/appointment sections. */
 export const isClinicalRole = (role: Role | null): boolean =>
   role === 'admin' || role === 'doctor' || role === 'receptionist' || role === 'nurse';
+
+// ---------------------------------------------------------------------------
+// Billing (Phase 7) — mirrors backend RBAC.
+// ---------------------------------------------------------------------------
+
+/**
+ * Who may open the billing desk at `/billing` and the lists under it.
+ *
+ * Narrower than the invoice itself, which doctors and nurses can also read
+ * (the server keeps them read-only). Anything linking *back* into the desk —
+ * a back link, a breadcrumb, an empty-state button — has to check this first
+ * or it sends those roles to the Unauthorized page.
+ */
+export const canViewBillingDesk = (role: Role | null): boolean =>
+  role === 'admin' || role === 'receptionist';
+
+/** Issuing an invoice and taking a payment against it. */
+export const canOperateBilling = canViewBillingDesk;
+
+/** Money leaving again, and voiding a record: administrators only. */
+export const canReverseBilling = (role: Role | null): boolean => role === 'admin';
 
 // ---------------------------------------------------------------------------
 // Laboratory (Phase 6) — mirrors backend RBAC.

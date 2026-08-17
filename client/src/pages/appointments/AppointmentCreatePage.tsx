@@ -23,10 +23,14 @@ export default function AppointmentCreatePage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    // Wider than a single form column: the form now runs beside a summary
+    // panel that carries the confirm button, and 56rem left the two too narrow
+    // to hold four time chips a row.
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
+        eyebrow="Appointments"
         title="Book appointment"
-        subtitle="Pick the patient, doctor, and an available time slot."
+        subtitle="Pick the patient, doctor, and an available time slot. Only free times inside the doctor's availability can be chosen."
       />
 
       <AppointmentForm

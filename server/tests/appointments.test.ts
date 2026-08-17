@@ -348,6 +348,25 @@ describe('status transitions', () => {
     await transition(id, 'cancelled').then((r) => expect(r.status).toBe(400));
   });
 
+  /**
+   * Confirmation is not a button any more — an appointment becomes confirmed
+   * when its consultation starts. A patient who never arrives therefore never
+   * leaves `scheduled`, so no-show has to be reachable from there or it would
+   * only ever apply to patients who did turn up.
+   */
+  it('marks a no-show straight from scheduled, without confirming first', async () => {
+    const res = await book().expect(201);
+    const id = (res.body.data.appointment as AppointmentJson)._id;
+
+    const marked = await transition(id, 'no_show');
+    expect(marked.status).toBe(200);
+    expect(marked.body.data.appointment.status).toBe('no_show');
+
+    // Still terminal: nothing follows a no-show.
+    await transition(id, 'confirmed').then((r) => expect(r.status).toBe(400));
+    await transition(id, 'completed').then((r) => expect(r.status).toBe(400));
+  });
+
   it('supports confirmed → no_show and cancellation keeps the record', async () => {
     const res = await book().expect(201);
     const id = (res.body.data.appointment as AppointmentJson)._id;

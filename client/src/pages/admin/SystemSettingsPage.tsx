@@ -8,7 +8,6 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Select, { type SelectOption } from '../../components/ui/Select';
-import Spinner from '../../components/ui/Spinner';
 import PageHeader from '../../components/ui/PageHeader';
 
 const CURRENCY_OPTIONS: SelectOption[] = [
@@ -55,6 +54,8 @@ export default function SystemSettingsPage() {
   const { refresh } = useSettings();
 
   const [form, setForm] = useState<FormState | null>(null);
+  /** Last saved values, so the page can tell whether anything is pending. */
+  const [saved, setSaved] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -63,10 +64,18 @@ export default function SystemSettingsPage() {
 
   useEffect(() => {
     getSystemSettings()
-      .then((settings) => setForm(toForm(settings)))
+      .then((settings) => {
+        setForm(toForm(settings));
+        setSaved(toForm(settings));
+      })
       .catch((err) => setError(getErrorMessage(err, 'Unable to load system settings.')))
       .finally(() => setLoading(false));
   }, []);
+
+  // Eight primitive fields — comparing the serialised pair is cheaper to read
+  // than eight explicit comparisons, and cannot fall out of step when a
+  // setting is added.
+  const dirty = Boolean(form && saved && JSON.stringify(form) !== JSON.stringify(saved));
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => (current ? { ...current, [key]: value } : current));
@@ -102,8 +111,9 @@ export default function SystemSettingsPage() {
     setError('');
     setNotice('');
     try {
-      const saved = await updateSystemSettings(payload);
-      setForm(toForm(saved));
+      const updated = await updateSystemSettings(payload);
+      setForm(toForm(updated));
+      setSaved(toForm(updated));
       refresh();
       setNotice('Settings saved. The change is recorded in the audit log.');
     } catch (err) {
@@ -113,17 +123,14 @@ export default function SystemSettingsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Spinner className="text-brand-700" />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
+    // Capped rather than left to fill the shell: a two-column field grid
+    // stretched to 1600px gives every input a line length nothing needs, and
+    // the eye has to travel from a label on the far left to its value far
+    // right.
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <PageHeader
+        eyebrow="Administration"
         title="System settings"
         subtitle="Stored in the database and applied across the application. Every change is audited."
       />
@@ -131,9 +138,31 @@ export default function SystemSettingsPage() {
       {error && <Alert tone="error">{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
 
+      {/* Skeletons in the shape of the two cards, rather than a spinner that
+          replaces the whole page — the title and its explanation stay put, so
+          nothing jumps when the values land. */}
+      {loading && (
+        <div className="space-y-6" aria-label="Loading system settings">
+          {[0, 1].map((card) => (
+            <div key={card} className="surface-card space-y-4 p-5">
+              <div className="h-4 w-40 rounded-md skeleton" />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[0, 1, 2, 3].map((field) => (
+                  <div key={field} className="h-10 rounded-xl skeleton" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {form && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Card title="Hospital identity">
+          <Card
+            title="Hospital identity"
+            subtitle="Shown on invoices, the sign-in screen, and the navigation rail."
+            icon="building"
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 label="Hospital name"
@@ -164,7 +193,11 @@ export default function SystemSettingsPage() {
             </div>
           </Card>
 
-          <Card title="Operations">
+          <Card
+            title="Operations"
+            subtitle="How money, time, and stock behave across the app."
+            icon="cog"
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Select
                 label="Currency"
@@ -184,29 +217,56 @@ export default function SystemSettingsPage() {
                 value={form.timezone}
                 onChange={(e) => set('timezone', e.target.value)}
                 hint="IANA name, e.g. Asia/Dhaka or UTC."
+                className="sm:col-span-2"
               />
-              <label className="flex items-start gap-3 pt-7 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={form.notifyLowStock}
-                  onChange={(e) => set('notifyLowStock', e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700
-                    focus:ring-brand-500"
-                />
-                <span>
-                  <span className="font-medium">Low-stock alerts</span>
-                  <span className="block text-slate-500">
-                    Notify pharmacists and admins when a medicine drops to its reorder level.
-                  </span>
-                </span>
-              </label>
             </div>
+
+            {/* Its own row under a hairline, not a fourth cell in the grid.
+                It used to sit beside a select and be pushed down by a hard
+                `pt-7` to fake alignment with that select's label — a number
+                that only held while neither label wrapped. */}
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border-t border-line pt-5 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.notifyLowStock}
+                onChange={(e) => set('notifyLowStock', e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-700 focus:ring-brand-500"
+              />
+              <span className="min-w-0">
+                <span className="font-medium text-slate-900">Low-stock alerts</span>
+                <span className="mt-0.5 block text-pretty leading-relaxed text-slate-500">
+                  Notify pharmacists and admins when a medicine drops to its reorder level.
+                </span>
+              </span>
+            </label>
           </Card>
 
-          <div className="flex justify-end">
-            <Button type="submit" loading={saving}>
-              Save settings
-            </Button>
+          {/* The actions get a surface of their own so the end of the form is
+              a place rather than a gap, and the page says plainly whether
+              anything is waiting to be saved. */}
+          <div className="surface-card flex flex-col-reverse gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500" aria-live="polite">
+              {dirty ? 'You have unsaved changes.' : 'Everything here is saved.'}
+            </p>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (saved) setForm(saved);
+                  setFieldError({});
+                }}
+                disabled={!dirty || saving}
+              >
+                Discard changes
+              </Button>
+              {/* Disabled while pristine: saving an unchanged form would still
+                  write an audit entry, and a trail of empty edits is worse
+                  than no trail. */}
+              <Button type="submit" loading={saving} disabled={!dirty}>
+                Save settings
+              </Button>
+            </div>
           </div>
         </form>
       )}

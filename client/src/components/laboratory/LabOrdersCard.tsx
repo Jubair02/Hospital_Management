@@ -114,25 +114,25 @@ export default function LabOrdersCard({ consultationMongoId }: LabOrdersCardProp
       {error && <Alert tone="error" className="mb-3">{error}</Alert>}
 
       {orders.length === 0 ? (
-        <p className="text-sm text-slate-400">No lab tests ordered for this consultation.</p>
+        <p className="text-sm text-slate-500">No lab tests ordered for this consultation.</p>
       ) : (
         <ul className="space-y-2">
           {orders.map((order) => (
             <li
               key={order._id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3 text-sm"
             >
-              <div>
+              <div className="min-w-0">
                 <Link
                   to={`/laboratory/orders/${order._id}`}
-                  className="font-medium text-brand-800 hover:underline"
+                  className="font-medium tabular-nums text-brand-800 transition-colors hover:text-brand-900 hover:underline"
                 >
                   {order.orderId}
                 </Link>
-                <span className="ml-2 text-slate-500">
+                <span className="ml-2 text-slate-600">
                   {order.tests.map((t) => t.testName).join(', ')}
                 </span>
-                <p className="mt-0.5 text-slate-400">{formatDate(order.orderedAt)}</p>
+                <p className="mt-0.5 text-xs text-slate-500">{formatDate(order.orderedAt)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <PriorityBadge priority={order.priority} />
@@ -170,28 +170,37 @@ export default function LabOrdersCard({ consultationMongoId }: LabOrdersCardProp
             autoFocus
           />
 
-          <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          <div className="scroll-slim max-h-56 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
             {tests.length === 0 ? (
-              <p className="p-2 text-sm text-slate-400">No active tests match.</p>
+              <p className="p-2 text-sm text-slate-500">No active tests match.</p>
             ) : (
-              tests.map((test) => (
-                <label
-                  key={test._id}
-                  className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50"
-                >
-                  <span className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(test._id)}
-                      onChange={() => toggleTest(test)}
-                      className="h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
-                    />
-                    <span className="font-medium text-slate-800">{test.name}</span>
-                    <span className="capitalize text-slate-500">({test.sampleType})</span>
-                  </span>
-                  <span className="text-slate-500">{test.price.toFixed(2)}</span>
-                </label>
-              ))
+              tests.map((test) => {
+                const checked = selected.has(test._id);
+                return (
+                  <label
+                    key={test._id}
+                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm transition-colors duration-150 ${
+                      checked ? 'bg-brand-50/70' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleTest(test)}
+                        className="h-4 w-4 shrink-0 accent-brand-600"
+                      />
+                      <span className="truncate font-medium text-slate-800">{test.name}</span>
+                      <span className="shrink-0 capitalize text-slate-500">
+                        ({test.sampleType})
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-slate-600">
+                      {test.price.toFixed(2)}
+                    </span>
+                  </label>
+                );
+              })
             )}
           </div>
 

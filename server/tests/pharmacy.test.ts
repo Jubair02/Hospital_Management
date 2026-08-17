@@ -137,11 +137,26 @@ describe('pharmacist role', () => {
     await request(app).get('/api/pharmacy/stats').set(auth(pharmacistToken)).expect(200);
     await request(app).get('/api/pharmacy/stats').set(auth(adminToken)).expect(200);
 
-    for (const role of ['doctor', 'receptionist', 'nurse'] as const) {
+    for (const role of ['doctor', 'receptionist'] as const) {
       const token = await loginAs(app, await createStaff(role));
       await request(app).get('/api/pharmacy/medicines').set(auth(token)).expect(403);
       await request(app).post('/api/pharmacy/dispensing').set(auth(token)).send({}).expect(403);
     }
+
+    // Nurses read the catalogue so an administration is charted against a real
+    // medicine instead of a typed drug name. Read-only: the rest of the module
+    // is still closed to them.
+    const nurseToken = await loginAs(app, await createStaff('nurse'));
+    await request(app).get('/api/pharmacy/medicines').set(auth(nurseToken)).expect(200);
+    await request(app).post('/api/pharmacy/dispensing').set(auth(nurseToken)).send({}).expect(403);
+    await request(app)
+      .post('/api/pharmacy/medicines')
+      .set(auth(nurseToken))
+      .send({})
+      .expect(403);
+    await request(app).get('/api/pharmacy/stats').set(auth(nurseToken)).expect(403);
+    await request(app).get('/api/pharmacy/inventory').set(auth(nurseToken)).expect(403);
+
     await request(app).get('/api/pharmacy/medicines').expect(401);
   });
 

@@ -30,9 +30,6 @@ export default function AdminDashboard() {
             <Link to="/admin/patients/new">
               <Button variant="accent">Register patient</Button>
             </Link>
-            <Link to="/analytics">
-              <Button variant="ghost">Analytics</Button>
-            </Link>
           </>
         }
       />

@@ -43,6 +43,10 @@ export const AUDIT_ACTIONS = [
   'patient_admitted',
   'bed_transferred',
   'patient_discharged',
+  // Nursing — the ward record, written by whoever is at the bedside
+  'observation_recorded',
+  'medication_administered',
+  'nursing_note_added',
   // Administration
   'settings_updated',
   'department_created',
@@ -75,6 +79,9 @@ export const AUDIT_RESOURCE_TYPES = [
   'settings',
   'department',
   'doctor',
+  'observation',
+  'medication_administration',
+  'nursing_note',
 ] as const;
 export type AuditResourceType = (typeof AUDIT_RESOURCE_TYPES)[number];
 

@@ -12,6 +12,7 @@ import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/date';
 import type { Admission, BedTransfer, HospitalBed, Ward } from '../../types';
 import Button from '../../components/ui/Button';
+import BackLink from '../../components/ui/BackLink';
 import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
 import Select from '../../components/ui/Select';
@@ -21,16 +22,43 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import { AdmissionStatusBadge } from '../../components/inpatient/InpatientBadges';
 
+/** One reading in the strip under the patient's name. */
+function Vital({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+/** A short fact: label left, value right. Wrong shape for prose — see `Field`. */
 function Row({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="flex justify-between gap-4 text-sm">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right">
+    <div className="flex items-baseline justify-between gap-4 text-sm">
+      <dt className="shrink-0 text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-right">
         {value ? (
           <span className="text-slate-800">{value}</span>
         ) : (
           <span className="text-slate-400">—</span>
         )}
+      </dd>
+    </div>
+  );
+}
+
+/** A fact that is a sentence — a reason for admission, a note. */
+function Field({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1.5 text-pretty text-sm leading-relaxed text-slate-800">
+        {value || <span className="text-slate-400">Not recorded</span>}
       </dd>
     </div>
   );
@@ -160,49 +188,97 @@ export default function AdmissionDetailsPage() {
 
   const active = admission.status === 'admitted' || admission.status === 'transferred';
 
+  const patientName = admission.patientId
+    ? `${admission.patientId.firstName} ${admission.patientId.lastName}`
+    : undefined;
+  const admissionTypeLabel =
+    admission.admissionType.charAt(0).toUpperCase() + admission.admissionType.slice(1);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-slate-900">{admission.admissionId}</h1>
+      <BackLink to="/inpatient/admissions" label="Admissions" />
+
+      {/* One surface carrying who, where, and since when. The admission id
+          used to be the heading; it is a filing code, and the person in the
+          bed is the subject. */}
+      <section className="surface-card relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-white"
+        />
+
+        <div className="relative p-5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-xl font-semibold tracking-[-0.014em] text-slate-900 sm:text-2xl">
+              {patientName ?? admission.admissionId}
+            </h1>
             <AdmissionStatusBadge status={admission.status} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Admitted {formatDate(admission.admissionDate)}
+
+          <p className="mt-1.5 text-sm text-slate-500">
             {admission.patientId && (
               <>
-                {' · '}
                 <Link
-                  className="text-brand-800 hover:underline"
+                  className="font-medium text-brand-800 transition-colors hover:text-brand-900 hover:underline"
                   to={`/patients/${admission.patientId._id}`}
                 >
-                  {admission.patientId.firstName} {admission.patientId.lastName} (
-                  {admission.patientId.patientId})
+                  {admission.patientId.patientId}
                 </Link>
+                {' \u00b7 '}
               </>
             )}
+            Reference{' '}
+            <span className="font-semibold tabular-nums text-slate-700">
+              {admission.admissionId}
+            </span>
           </p>
+
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-4">
+            <Vital label="Ward" value={admission.wardId?.name ?? 'Not assigned'} />
+            <Vital label="Bed" value={admission.bedId?.bedNumber ?? 'Not assigned'} />
+            <Vital label="Admitted" value={formatDate(admission.admissionDate)} />
+            <Vital
+              label={admission.dischargeDate ? 'Discharged' : 'Expected discharge'}
+              value={
+                admission.dischargeDate
+                  ? formatDate(admission.dischargeDate)
+                  : admission.expectedDischargeDate
+                    ? formatDate(admission.expectedDischargeDate)
+                    : 'Not set'
+              }
+            />
+          </dl>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/inpatient/admissions">
-            <Button variant="ghost">Back to list</Button>
-          </Link>
-          {canOperate && active && (
-            <>
-              <Button variant="secondary" onClick={() => setTransferOpen(true)}>
-                Transfer
+
+        {/* Only the actions — the way back sits above the heading. */}
+        {((canOperate && active) || (isAdmin && active)) && (
+          <div className="relative flex flex-col gap-2 border-t border-line bg-slate-50/70 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            {isAdmin && active && (
+              <Button
+                variant="dangerGhost"
+                className="w-full sm:mr-auto sm:w-auto"
+                onClick={() => setConfirm('cancel')}
+              >
+                Cancel admission
               </Button>
-              <Button onClick={() => setConfirm('discharge')}>Discharge</Button>
-            </>
-          )}
-          {isAdmin && active && (
-            <Button variant="danger" onClick={() => setConfirm('cancel')}>
-              Cancel admission
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+            {canOperate && active && (
+              <>
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => setTransferOpen(true)}
+                >
+                  Transfer
+                </Button>
+                <Button className="w-full sm:w-auto" onClick={() => setConfirm('discharge')}>
+                  Discharge
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
@@ -212,34 +288,19 @@ export default function AdmissionDetailsPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card title="Admission">
-          <dl className="space-y-3">
-            <Row label="Reason" value={admission.reason} />
-            <Row label="Type" value={admission.admissionType} />
-            <Row label="Admitted" value={formatDate(admission.admissionDate)} />
-            <Row
-              label="Expected discharge"
-              value={admission.expectedDischargeDate ? formatDate(admission.expectedDischargeDate) : undefined}
-            />
-            <Row
-              label="Discharged"
-              value={admission.dischargeDate ? formatDate(admission.dischargeDate) : undefined}
-            />
-            <Row
-              label="Admitted by"
-              value={
-                admission.admittedBy
-                  ? `${admission.admittedBy.firstName} ${admission.admittedBy.lastName}`
-                  : undefined
-              }
-            />
-            <Row label="Notes" value={admission.notes} />
+      {/* Prose on the left where it has room to be a sentence; the fixed
+          facts on the right. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+        <Card title="Admission" icon="clipboard">
+          <dl className="space-y-5">
+            <Field label="Reason for admission" value={admission.reason} />
+            <Field label="Notes" value={admission.notes} />
           </dl>
         </Card>
 
-        <Card title="Location & care">
+        <Card title="Care team" icon="doctors">
           <dl className="space-y-3">
+            <Row label="Type" value={admissionTypeLabel} />
             <Row
               label="Doctor"
               value={
@@ -250,6 +311,14 @@ export default function AdmissionDetailsPage() {
             />
             <Row label="Ward" value={admission.wardId?.name} />
             <Row label="Bed" value={admission.bedId?.bedNumber} />
+            <Row
+              label="Admitted by"
+              value={
+                admission.admittedBy
+                  ? `${admission.admittedBy.firstName} ${admission.admittedBy.lastName}`
+                  : undefined
+              }
+            />
           </dl>
         </Card>
       </div>

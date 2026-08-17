@@ -9,6 +9,8 @@ export type Role =
   | 'lab_technician'
   | 'patient';
 
+import { isBeforeToday } from './utils/date';
+
 /** A user as serialized by the API (passwords never leave the server). */
 export interface User {
   _id: string;
@@ -297,13 +299,35 @@ export const APPOINTMENT_STATUSES: AppointmentStatus[] = [
 ];
 
 /** Mirrors the server's transition table for building UI actions. */
+/**
+ * Mirrors the server's map. `confirmed` and `completed` are reached by
+ * starting and finishing a consultation rather than by pressing a button, so
+ * the only transitions a person drives are the two exits: the patient did not
+ * come (`no_show`), or the appointment is called off (`cancelled`).
+ */
 export const APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
-  scheduled: ['confirmed', 'cancelled'],
+  scheduled: ['confirmed', 'cancelled', 'no_show'],
   confirmed: ['completed', 'cancelled', 'no_show'],
   completed: [],
   cancelled: [],
   no_show: [],
 };
+
+/**
+ * The transitions offered as buttons, in the order they should appear —
+ * benign first, irreversible-and-negative last, so the destructive one is
+ * never where a hand lands by habit.
+ *
+ * `completed` is here as a fallback rather than a step: it is applied
+ * automatically when a consultation finishes, and only the front desk sees the
+ * button (see `canMarkAppointmentCompleted`). `confirmed` is absent entirely —
+ * starting a consultation is the only thing that confirms an appointment.
+ */
+export const MANUAL_APPOINTMENT_ACTIONS: AppointmentStatus[] = [
+  'completed',
+  'no_show',
+  'cancelled',
+];
 
 export interface AppointmentPatientRef {
   _id: string;
@@ -458,7 +482,8 @@ export interface Consultation {
   clinicalNotes?: string;
   physicalExamination?: string;
   assessment?: string;
-  vitalSigns: VitalSigns;
+  /** Absent on records saved before the container was persisted empty. */
+  vitalSigns?: VitalSigns;
   diagnoses: Diagnosis[];
   treatmentPlan?: string;
   prescriptions: PrescriptionMedicine[];
@@ -1663,3 +1688,17 @@ export interface PortalProfilePayload {
   maritalStatus?: string;
   occupation?: string;
 }
+
+/**
+ * An appointment whose day has passed while it still holds the doctor's time.
+ *
+ * `scheduled` and `confirmed` are the two statuses that block booking, so one
+ * left in either state after its date keeps a slot unbookable for good —
+ * there is no job that closes them, and nothing else in the interface says so.
+ */
+export const isAppointmentOverdue = (appointment: {
+  status: AppointmentStatus;
+  appointmentDate: string;
+}): boolean =>
+  (appointment.status === 'scheduled' || appointment.status === 'confirmed') &&
+  isBeforeToday(appointment.appointmentDate);

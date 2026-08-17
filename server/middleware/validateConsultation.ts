@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { isValidObjectId } from 'mongoose';
 import ApiError from '../utils/ApiError.js';
+import { vitalsErrors } from './vitalsRules.js';
 import { CONSULTATION_STATUSES, DIAGNOSIS_TYPES } from '../models/Consultation.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -12,9 +13,6 @@ const isNonEmptyString = (v: unknown): v is string =>
 
 const isBounded = (v: unknown, max: number): boolean => typeof v === 'string' && v.length <= max;
 
-/** Optional non-negative finite number (upper cap keeps input sane). */
-const isVital = (v: unknown, max = 100_000): boolean =>
-  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max;
 
 /** POST /api/consultations — body: { appointmentId } */
 export const validateStartConsultation: RequestHandler = (req, _res, next) => {
@@ -47,40 +45,7 @@ export const validateUpdateConsultation: RequestHandler = (req, _res, next) => {
     }
   }
 
-  // Vital signs
-  if (body.vitalSigns !== undefined) {
-    if (typeof body.vitalSigns !== 'object' || body.vitalSigns === null) {
-      errors.push('vitalSigns must be an object.');
-    } else {
-      const vitals = body.vitalSigns as Record<string, unknown>;
-      const numericFields = [
-        'temperature',
-        'heartRate',
-        'bloodPressureSystolic',
-        'bloodPressureDiastolic',
-        'respiratoryRate',
-        'weight',
-        'height',
-      ];
-      for (const field of numericFields) {
-        if (vitals[field] !== undefined && vitals[field] !== null && !isVital(vitals[field])) {
-          errors.push(`${field} must be a non-negative number.`);
-        }
-      }
-      if (
-        vitals.oxygenSaturation !== undefined &&
-        vitals.oxygenSaturation !== null &&
-        !(
-          typeof vitals.oxygenSaturation === 'number' &&
-          Number.isFinite(vitals.oxygenSaturation) &&
-          vitals.oxygenSaturation >= 0 &&
-          vitals.oxygenSaturation <= 100
-        )
-      ) {
-        errors.push('oxygenSaturation must be between 0 and 100.');
-      }
-    }
-  }
+  errors.push(...vitalsErrors(body.vitalSigns));
 
   // Diagnoses
   if (body.diagnoses !== undefined) {

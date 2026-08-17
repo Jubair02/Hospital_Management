@@ -2,7 +2,7 @@ import './env.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import createApp from '../app.js';
-import { setupTestDB, createAdmin, loginAs, ADMIN } from './helpers.js';
+import { setupTestDB, createAdmin, createStaff, loginAs, ADMIN } from './helpers.js';
 
 const app = createApp();
 
@@ -110,6 +110,119 @@ describe('GET /api/auth/me', () => {
       .get('/api/auth/me')
       .set('Authorization', 'Bearer not.a.real.token')
       .expect(401);
+  });
+});
+
+/**
+ * Self-service profile editing. The interesting cases are all about what the
+ * endpoint refuses: it is reachable by anyone with a session, so every field
+ * it accepts is a field a borrowed session can rewrite.
+ */
+describe('PATCH /api/auth/me', () => {
+  beforeEach(async () => {
+    await createAdmin();
+  });
+
+  // Not async: callers chain `.expect()` onto the supertest request itself.
+  const patch = (token: string, body: Record<string, unknown>) =>
+    request(app).patch('/api/auth/me').set('Authorization', `Bearer ${token}`).send(body);
+
+  it('updates own name and phone, and audits the change', async () => {
+    const token = await loginAs(app, ADMIN);
+
+    const res = await patch(token, {
+      firstName: 'Amara',
+      lastName: 'Sesay',
+      phone: '+1 555-0142',
+    }).expect(200);
+
+    expect(res.body.data.user.firstName).toBe('Amara');
+    expect(res.body.data.user.lastName).toBe('Sesay');
+    expect(res.body.data.user.phone).toBe('+1 555-0142');
+    expect(res.body.data.user).not.toHaveProperty('password');
+
+    // The change survives a re-read, not just the response body.
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(me.body.data.user.firstName).toBe('Amara');
+
+    const { default: AuditLog } = await import('../models/AuditLog.js');
+    const entry = await AuditLog.findOne({ action: 'user_updated' });
+    expect(entry).not.toBeNull();
+    expect(entry!.toJSON()).toMatchObject({ metadata: { self: true } });
+  });
+
+  it('refuses to change the sign-in email', async () => {
+    const token = await loginAs(app, ADMIN);
+
+    await patch(token, { email: 'attacker@test.local' }).expect(400);
+
+    // The original address still signs in, and the new one does not exist.
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email: ADMIN.email, password: ADMIN.password })
+      .expect(200);
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'attacker@test.local', password: ADMIN.password })
+      .expect(401);
+  });
+
+  it('refuses to change own role or status', async () => {
+    const { email, password } = await createStaff('nurse');
+    const token = await loginAs(app, { email, password });
+
+    await patch(token, { role: 'admin' }).expect(400);
+    await patch(token, { status: 'suspended' }).expect(400);
+
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(me.body.data.user.role).toBe('nurse');
+  });
+
+  it('rejects an empty or over-long name, and an empty payload', async () => {
+    const token = await loginAs(app, ADMIN);
+
+    await patch(token, { firstName: '   ' }).expect(400);
+    await patch(token, { firstName: 'x'.repeat(51) }).expect(400);
+    await patch(token, {}).expect(400);
+  });
+
+  it('lets a phone number be cleared', async () => {
+    const token = await loginAs(app, ADMIN);
+
+    await patch(token, { phone: '+1 555-0142' }).expect(200);
+    const res = await patch(token, { phone: '' }).expect(200);
+    expect(res.body.data.user.phone ?? '').toBe('');
+  });
+
+  it('refuses a patient portal login, whose details live on the patient record', async () => {
+    const portal = await createAdmin({
+      email: 'portal.profile@test.local',
+      password: 'PortalPass123!',
+      role: 'patient',
+      firstName: 'Tomas',
+      lastName: 'Ndiaye',
+    });
+    const token = await loginAs(app, {
+      email: 'portal.profile@test.local',
+      password: 'PortalPass123!',
+    });
+
+    const res = await patch(token, { firstName: 'Changed' }).expect(400);
+    expect(res.body.message).toMatch(/profile page/i);
+
+    const { default: User } = await import('../models/User.js');
+    const unchanged = await User.findById(portal._id);
+    expect(unchanged!.firstName).toBe('Tomas');
+  });
+
+  it('rejects an unauthenticated call with 401', async () => {
+    await request(app).patch('/api/auth/me').send({ firstName: 'Nobody' }).expect(401);
   });
 });
 

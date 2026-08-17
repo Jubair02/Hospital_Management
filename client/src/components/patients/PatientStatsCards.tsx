@@ -24,7 +24,7 @@ const CARDS: CardSpec[] = [
 ];
 
 /** Real patient statistics for the admin and receptionist dashboards. */
-export default function PatientStatsCards() {
+export default function PatientStatsCards({ refreshKey = 0 }: { refreshKey?: number }) {
   const { role } = useAuth();
   const [stats, setStats] = useState<PatientStats | null>(null);
   const [error, setError] = useState('');
@@ -43,7 +43,7 @@ export default function PatientStatsCards() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   if (error) {
     return <Alert tone="error">{error}</Alert>;

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useSettings from '../../hooks/useSettings';
 import { DASHBOARD_PATHS, ROLES } from '../../utils/constants';
@@ -10,6 +10,14 @@ interface NavItem {
   icon: IconName;
   /** Match the exact path only — used by parent links such as /admin. */
   end?: boolean;
+  /**
+   * Routes this entry owns despite their URL sitting elsewhere. The
+   * consultation workbench is the case: it is keyed by appointment, so it
+   * lives under /doctor/appointments and lit that entry instead of
+   * Consultations. A claim wins over path matching for the whole rail, so
+   * exactly one entry stays lit.
+   */
+  activeOn?: RegExp;
 }
 
 interface NavGroup {
@@ -30,7 +38,7 @@ const nav = (
   to: string,
   label: string,
   icon: IconName,
-  extra?: Pick<NavItem, 'end'>
+  extra?: Pick<NavItem, 'end' | 'activeOn'>
 ): NavItem => ({ to, label, icon, ...extra });
 
 const ROW =
@@ -60,6 +68,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { role } = useAuth();
   const { hospitalName } = useSettings();
+  const { pathname } = useLocation();
 
   const isClinical =
     role === ROLES.ADMIN ||
@@ -109,7 +118,9 @@ export default function Sidebar({
           : []),
         ...(role === ROLES.DOCTOR
           ? [
-              nav('/doctor/consultations', 'Consultations', 'clipboard'),
+              nav('/doctor/consultations', 'Consultations', 'clipboard', {
+                activeOn: /^\/doctor\/appointments\/[^/]+\/consultation$/,
+              }),
               nav('/doctor/availability', 'Availability', 'clock'),
             ]
           : []),
@@ -175,7 +186,10 @@ export default function Sidebar({
               nav('/admin/departments', 'Departments', 'building'),
               nav('/admin/users', 'Users', 'users'),
               nav('/admin/audit-logs', 'Audit logs', 'shield'),
-              nav('/admin', 'Administration', 'cog', { end: true }),
+              // Took the retired /admin hub's place: that page was the only
+              // way in, and everything else it held was a shorter copy of a
+              // screen already listed here.
+              nav('/admin/system-health', 'System health', 'activity'),
             ]
           : [],
     },
@@ -184,6 +198,11 @@ export default function Sidebar({
   const groups = (role === ROLES.PATIENT ? patientGroups : allGroups).filter(
     (group) => group.items.length > 0
   );
+
+  /** The entry that owns the current route outright, if any. */
+  const claimed = groups
+    .flatMap((group) => group.items)
+    .find((item) => item.activeOn?.test(pathname));
 
   /** Text that gives way to icons only once the rail is collapsed. */
   const labelClass = collapsed ? 'truncate lg:sr-only' : 'truncate';
@@ -202,7 +221,7 @@ export default function Sidebar({
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-[17rem] flex-col
           bg-gradient-to-b from-navy-900 to-navy-950 text-white
-          transition-[transform,width] duration-200 ease-out lg:translate-x-0
+          transition-[transform,width] duration-200 ease-out lg:translate-x-0 print:hidden
           ${collapsed ? 'lg:w-[4.75rem]' : 'lg:w-[16.5rem]'}
           ${open ? 'translate-x-0 shadow-xl' : '-translate-x-full'}`}
         aria-label="Main navigation"
@@ -231,7 +250,8 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation. A claimed route overrides path matching everywhere, so
+            the rail never lights two entries or the wrong one. */}
         <nav className="scroll-slim flex-1 overflow-y-auto px-3 py-3">
           {groups.map((group, groupIndex) => (
             <div key={group.label ?? 'primary'}>
@@ -262,9 +282,9 @@ export default function Sidebar({
                       onClick={onClose}
                       title={collapsed ? item.label : undefined}
                       className={({ isActive }) =>
-                        `${ROW} ${isActive ? ROW_ACTIVE : ROW_IDLE} ${
-                          collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : ''
-                        }`
+                        `${ROW} ${
+                          (claimed ? claimed === item : isActive) ? ROW_ACTIVE : ROW_IDLE
+                        } ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : ''}`
                       }
                     >
                       <Icon name={item.icon} className="h-5 w-5 shrink-0" />

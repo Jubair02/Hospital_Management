@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import useSettings from '../../hooks/useSettings';
 import {
   getInvoiceById,
   recordPayment,
@@ -11,12 +12,18 @@ import {
 import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/date';
 import {
+  canOperateBilling,
+  canReverseBilling,
+  canViewBillingDesk,
+} from '../../utils/permissions';
+import {
   PAYMENT_METHODS,
   type BillingPayment,
   type Invoice,
   type PaymentMethod,
 } from '../../types';
 import Button from '../../components/ui/Button';
+import BackLink from '../../components/ui/BackLink';
 import Card from '../../components/ui/Card';
 import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
@@ -24,21 +31,83 @@ import Select from '../../components/ui/Select';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
-import Table, { type Column } from '../../components/ui/Table';
 import {
+  InvoiceItemTypeBadge,
   InvoicePaymentBadge,
   InvoiceStatusBadge,
   PaymentRecordBadge,
   methodLabel,
 } from '../../components/billing/BillingBadges';
-import type { InvoiceItem } from '../../types';
+
+/** One figure in the strip under the invoice heading. */
+function Figure({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'paid' | 'due';
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        {label}
+      </p>
+      <p
+        className={`mt-0.5 truncate text-[0.9375rem] font-semibold tabular-nums ${
+          tone === 'due' ? 'text-rose-600' : tone === 'paid' ? 'text-accent-700' : 'text-slate-900'
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/** A line in the totals block at the foot of the items table. */
+function TotalRow({
+  label,
+  value,
+  tone = 'default',
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'paid' | 'due';
+  emphasis?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-baseline justify-between gap-6 ${
+        emphasis ? 'border-t border-line pt-2.5 text-base' : 'text-sm'
+      }`}
+    >
+      <dt className={emphasis ? 'font-semibold text-slate-800' : 'text-slate-500'}>{label}</dt>
+      <dd
+        className={`tabular-nums ${
+          tone === 'due'
+            ? 'font-semibold text-rose-600'
+            : tone === 'paid'
+              ? 'text-accent-700'
+              : emphasis
+                ? 'font-semibold text-slate-900'
+                : 'text-slate-800'
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
 
 export default function InvoiceDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { role } = useAuth();
-  const isAdmin = role === 'admin';
-  const canOperate = role === 'admin' || role === 'receptionist';
+  const { hospitalName } = useSettings();
+  const canReverse = canReverseBilling(role);
+  const canOperate = canOperateBilling(role);
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [payments, setPayments] = useState<BillingPayment[]>([]);
@@ -50,8 +119,10 @@ export default function InvoiceDetailsPage() {
 
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', method: 'cash', reference: '', notes: '' });
+  const [payError, setPayError] = useState('');
   const [refunding, setRefunding] = useState<BillingPayment | null>(null);
   const [refundForm, setRefundForm] = useState({ amount: '', notes: '' });
+  const [refundError, setRefundError] = useState('');
   const [confirm, setConfirm] = useState<'issue' | 'cancel' | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -97,10 +168,17 @@ export default function InvoiceDetailsPage() {
     e.preventDefault();
     if (!invoice) return;
     const amount = Number(payForm.amount);
+    // Validated into the dialog rather than onto the page behind it — a page
+    // alert under an open modal is a message nobody reads.
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError('Enter a positive payment amount.');
+      setPayError('Enter a payment amount greater than zero.');
       return;
     }
+    if (amount > invoice.dueAmount) {
+      setPayError(`That is more than the ${formatMoney(invoice.dueAmount)} outstanding.`);
+      return;
+    }
+    setPayError('');
     setPayOpen(false);
     await act(
       () =>
@@ -116,176 +194,336 @@ export default function InvoiceDetailsPage() {
     setPayForm({ amount: '', method: 'cash', reference: '', notes: '' });
   };
 
+  const handleRefund = async () => {
+    if (!refunding) return;
+    const amount = Number(refundForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setRefundError('Enter a refund amount greater than zero.');
+      return;
+    }
+    if (amount > refunding.amount) {
+      setRefundError(`That is more than the ${formatMoney(refunding.amount)} taken.`);
+      return;
+    }
+    const target = refunding;
+    setRefundError('');
+    setRefunding(null);
+    await act(
+      () =>
+        recordRefund({
+          paymentId: target._id,
+          amount,
+          notes: refundForm.notes.trim() || undefined,
+        }),
+      'Refund recorded.'
+    );
+  };
+
   if (loading) return <FullPageSpinner label="Loading invoice" />;
 
   if (!invoice) {
     return (
-      <div className="space-y-4">
-        <Alert tone="error">{error || 'Invoice not found.'}</Alert>
-        <Link to="/billing/invoices">
-          <Button variant="secondary">Back to invoices</Button>
+      <div className="mx-auto max-w-lg space-y-4 py-10 text-center">
+        <Alert tone="error">{error || 'This invoice could not be found.'}</Alert>
+        <Link to={canViewBillingDesk(role) ? '/billing/invoices' : '/'}>
+          <Button variant="secondary">
+            {canViewBillingDesk(role) ? 'Back to invoices' : 'Back to dashboard'}
+          </Button>
         </Link>
       </div>
     );
   }
 
-  const itemColumns: Column<InvoiceItem & { id?: string }>[] = [
-    { key: 'description', header: 'Description' },
-    {
-      key: 'itemType',
-      header: 'Type',
-      render: (i) => <span className="capitalize">{i.itemType.replace('_', ' ')}</span>,
-    },
-    { key: 'quantity', header: 'Qty' },
-    { key: 'unitPrice', header: 'Unit price', render: (i) => formatMoney(i.unitPrice) },
-    {
-      key: 'totalPrice',
-      header: 'Total',
-      render: (i) => <span className="font-semibold">{formatMoney(i.totalPrice)}</span>,
-    },
-  ];
+  const patientName = invoice.patientId
+    ? `${invoice.patientId.firstName} ${invoice.patientId.lastName}`
+    : null;
+
+  // Doctors and nurses can read an invoice but have no billing desk to go back
+  // to, so they are sent to the patient the invoice belongs to instead.
+  const back = canViewBillingDesk(role)
+    ? { to: '/billing/invoices', label: 'Invoices' }
+    : invoice.patientId
+      ? { to: `/patients/${invoice.patientId._id}`, label: patientName ?? 'Patient' }
+      : null;
+
+  const showIssue = canOperate && invoice.invoiceStatus === 'draft';
+  const showPay = canOperate && invoice.invoiceStatus === 'issued' && invoice.dueAmount > 0;
+  const showCancel = canReverse && invoice.invoiceStatus !== 'cancelled' && invoice.amountPaid === 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-slate-900">{invoice.invoiceId}</h1>
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      {back && (
+        <div className="print:hidden">
+          <BackLink to={back.to} label={back.label} />
+        </div>
+      )}
+
+      {/* Letterhead — on paper only. A printed invoice with no hospital name on
+          it is not a document anyone can file. */}
+      <div className="hidden print:block">
+        <p className="text-lg font-semibold text-slate-900">{hospitalName}</p>
+        <p className="mt-0.5 text-xs text-slate-500">Invoice {invoice.invoiceId}</p>
+      </div>
+
+      {/* One surface carrying who owes what. The invoice number used to be the
+          heading; it is a filing code, and the patient is the subject. */}
+      <section className="surface-card relative overflow-hidden print:border-0 print:shadow-none">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-white print:hidden"
+        />
+
+        <div className="relative p-5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-xl font-semibold tracking-[-0.014em] text-slate-900 sm:text-2xl">
+              {patientName ?? invoice.invoiceId}
+            </h1>
             <InvoiceStatusBadge status={invoice.invoiceStatus} />
             <InvoicePaymentBadge status={invoice.paymentStatus} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {formatDate(invoice.createdAt)}
+
+          <p className="mt-1.5 text-sm text-slate-500">
             {invoice.patientId && (
               <>
-                {' · '}
-                <Link className="text-brand-800 hover:underline" to={`/patients/${invoice.patientId._id}`}>
-                  {invoice.patientId.firstName} {invoice.patientId.lastName} (
-                  {invoice.patientId.patientId})
+                <Link
+                  className="font-medium text-brand-800 transition-colors hover:text-brand-900 hover:underline"
+                  to={`/patients/${invoice.patientId._id}`}
+                >
+                  {invoice.patientId.patientId}
                 </Link>
+                {' · '}
               </>
             )}
+            Invoice{' '}
+            <span className="font-semibold tabular-nums text-slate-700">{invoice.invoiceId}</span>
+            {' · '}
+            {formatDate(invoice.createdAt)}
             {invoice.createdBy && (
               <>
                 {' · '}by {invoice.createdBy.firstName} {invoice.createdBy.lastName}
               </>
             )}
           </p>
+
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-4">
+            <Figure label="Total" value={formatMoney(invoice.totalAmount)} />
+            <Figure label="Paid" value={formatMoney(invoice.amountPaid)} tone="paid" />
+            <Figure
+              label="Due"
+              value={formatMoney(invoice.dueAmount)}
+              tone={invoice.dueAmount > 0 ? 'due' : 'default'}
+            />
+            <Figure
+              label="Items"
+              value={`${invoice.items.length} line${invoice.items.length === 1 ? '' : 's'}`}
+            />
+          </dl>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Link to="/billing/invoices">
-            <Button variant="ghost">Back to list</Button>
-          </Link>
-          <Button variant="secondary" onClick={() => window.print()}>
-            Print
-          </Button>
-          {canOperate && invoice.invoiceStatus === 'draft' && (
-            <Button onClick={() => setConfirm('issue')}>Issue invoice</Button>
-          )}
-          {canOperate && invoice.invoiceStatus === 'issued' && invoice.dueAmount > 0 && (
-            <Button onClick={() => setPayOpen(true)}>Record payment</Button>
-          )}
-          {isAdmin && invoice.invoiceStatus !== 'cancelled' && invoice.amountPaid === 0 && (
-            <Button variant="danger" onClick={() => setConfirm('cancel')}>
+        {/* Only the actions — the way back sits above the heading. */}
+        <div className="relative flex flex-col gap-2 border-t border-line bg-slate-50/70 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end print:hidden">
+          {showCancel && (
+            <Button
+              variant="dangerGhost"
+              className="w-full sm:mr-auto sm:w-auto"
+              onClick={() => setConfirm('cancel')}
+            >
               Cancel invoice
             </Button>
           )}
+          <Button variant="secondary" className="w-full sm:w-auto" onClick={() => window.print()}>
+            Print
+          </Button>
+          {showIssue && (
+            <Button className="w-full sm:w-auto" onClick={() => setConfirm('issue')}>
+              Issue invoice
+            </Button>
+          )}
+          {showPay && (
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setPayError('');
+                setPayForm((f) => ({ ...f, amount: '' }));
+                setPayOpen(true);
+              }}
+            >
+              Record payment
+            </Button>
+          )}
         </div>
-      </div>
+      </section>
 
-      {notice && <Alert tone="success" className="print:hidden">{notice}</Alert>}
-      {error && <Alert tone="error" className="print:hidden">{error}</Alert>}
+      {notice && (
+        <Alert tone="success" className="print:hidden">
+          {notice}
+        </Alert>
+      )}
+      {error && (
+        <Alert tone="error" className="print:hidden">
+          {error}
+        </Alert>
+      )}
+      {invoice.invoiceStatus === 'draft' && canOperate && (
+        <Alert tone="info" className="print:hidden">
+          This is a draft. Issue it to lock the items and start accepting payments.
+        </Alert>
+      )}
       {invoice.invoiceStatus === 'issued' && (
         <Alert tone="info" className="print:hidden">
           Issued invoices are read-only — only payments and refunds can be applied.
         </Alert>
       )}
+      {invoice.invoiceStatus === 'cancelled' && (
+        <Alert tone="warning" className="print:hidden">
+          This invoice was cancelled. It is kept as a historical record and cannot take payments.
+        </Alert>
+      )}
 
-      <Card title="Items">
-        <Table columns={itemColumns} rows={invoice.items.map((i, idx) => ({ ...i, id: String(idx) }))} />
-        <dl className="ml-auto mt-4 max-w-xs space-y-1.5 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Subtotal</dt>
-            <dd className="text-slate-800">{formatMoney(invoice.subtotal)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Discount</dt>
-            <dd className="text-slate-800">−{formatMoney(invoice.discount)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Tax</dt>
-            <dd className="text-slate-800">+{formatMoney(invoice.tax)}</dd>
-          </div>
-          <div className="flex justify-between border-t border-slate-200 pt-1.5 text-base">
-            <dt className="font-semibold text-slate-800">Total</dt>
-            <dd className="font-semibold text-slate-900">{formatMoney(invoice.totalAmount)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Paid</dt>
-            <dd className="text-emerald-700">{formatMoney(invoice.amountPaid)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Due</dt>
-            <dd className={invoice.dueAmount > 0 ? 'font-semibold text-rose-600' : 'text-slate-800'}>
-              {formatMoney(invoice.dueAmount)}
-            </dd>
-          </div>
-        </dl>
+      {/* The invoice document itself: lines, then what they add up to. Written
+          as one table with its totals attached rather than a table nested in a
+          card with a separate summary list beside it. */}
+      <Card title="Items" icon="clipboard" padded={false} className="print:shadow-none">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line bg-slate-50/80 text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                <th scope="col" className="px-5 py-3 text-left">
+                  Description
+                </th>
+                <th scope="col" className="px-3 py-3 text-right">
+                  Qty
+                </th>
+                <th scope="col" className="px-3 py-3 text-right">
+                  Unit price
+                </th>
+                <th scope="col" className="px-5 py-3 text-right">
+                  Amount
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {invoice.items.map((item, index) => (
+                <tr key={`${item.referenceId ?? item.description}-${index}`}>
+                  <td className="px-5 py-3.5">
+                    <p className="font-medium text-slate-800">{item.description}</p>
+                    <p className="mt-1.5">
+                      <InvoiceItemTypeBadge type={item.itemType} />
+                    </p>
+                  </td>
+                  <td className="px-3 py-3.5 text-right tabular-nums text-slate-600">
+                    {item.quantity}
+                  </td>
+                  <td className="px-3 py-3.5 text-right tabular-nums text-slate-600">
+                    {formatMoney(item.unitPrice)}
+                  </td>
+                  <td className="px-5 py-3.5 text-right font-semibold tabular-nums text-slate-900">
+                    {formatMoney(item.totalPrice)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-line bg-slate-50/60 px-5 py-4">
+          <dl className="ml-auto w-full max-w-xs space-y-2">
+            <TotalRow label="Subtotal" value={formatMoney(invoice.subtotal)} />
+            {invoice.discount > 0 && (
+              <TotalRow label="Discount" value={`−${formatMoney(invoice.discount)}`} />
+            )}
+            {invoice.tax > 0 && <TotalRow label="Tax" value={`+${formatMoney(invoice.tax)}`} />}
+            <TotalRow label="Total" value={formatMoney(invoice.totalAmount)} emphasis />
+            <TotalRow label="Paid" value={formatMoney(invoice.amountPaid)} tone="paid" />
+            <TotalRow
+              label="Due"
+              value={formatMoney(invoice.dueAmount)}
+              tone={invoice.dueAmount > 0 ? 'due' : 'default'}
+            />
+          </dl>
+        </div>
       </Card>
 
-      <Card title="Payment history" className="print:hidden">
+      <Card
+        title="Payments"
+        subtitle={
+          payments.length > 0
+            ? `${payments.length} record${payments.length === 1 ? '' : 's'} against this invoice`
+            : undefined
+        }
+        icon="cash"
+        className="print:shadow-none"
+      >
         {payments.length === 0 ? (
-          <p className="text-sm text-slate-400">No payments recorded yet.</p>
+          <p className="text-sm text-slate-500">
+            No payments recorded yet.
+            {showPay && ' Use “Record payment” above to take the first one.'}
+          </p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-line">
             {payments.map((p) => (
               <li
                 key={p._id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm"
+                className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3.5 first:pt-0 last:pb-0"
               >
-                <div>
-                  <p className="font-medium text-slate-800">
-                    {p.paymentId} · {p.type === 'refund' ? '−' : ''}
-                    {formatMoney(p.amount)} · {methodLabel(p.method)}
-                  </p>
-                  <p className="text-slate-500">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                    <span
+                      className={`text-[0.9375rem] font-semibold tabular-nums ${
+                        p.type === 'refund' ? 'text-rose-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {p.type === 'refund' ? '−' : ''}
+                      {formatMoney(p.amount)}
+                    </span>
+                    <PaymentRecordBadge status={p.status} type={p.type} />
+                    <span className="text-xs text-slate-500">{methodLabel(p.method)}</span>
+                  </div>
+
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    <span className="tabular-nums">{p.paymentId}</span>
+                    {' · '}
                     {formatDate(p.paidAt)}
                     {p.receivedBy && (
                       <>
                         {' · '}by {p.receivedBy.firstName} {p.receivedBy.lastName}
                       </>
                     )}
-                    {p.transactionReference && <> · Ref: {p.transactionReference}</>}
-                    {p.notes && <> · {p.notes}</>}
+                    {p.transactionReference && <> {'·'} Ref {p.transactionReference}</>}
                   </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <PaymentRecordBadge status={p.status} type={p.type} />
-                  {isAdmin && p.type === 'payment' && p.status === 'completed' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setRefunding(p);
-                        setRefundForm({ amount: '', notes: '' });
-                      }}
-                    >
-                      Refund
-                    </Button>
+                  {p.notes && (
+                    <p className="mt-1 text-pretty text-xs leading-relaxed text-slate-600">
+                      “{p.notes}”
+                    </p>
                   )}
                 </div>
+
+                {canReverse && p.type === 'payment' && p.status === 'completed' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="print:hidden"
+                    onClick={() => {
+                      setRefunding(p);
+                      setRefundForm({ amount: '', notes: '' });
+                      setRefundError('');
+                    }}
+                  >
+                    Refund
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
         )}
       </Card>
 
-      {/* Record payment modal */}
+      {/* Record payment */}
       <Modal
         open={payOpen}
         onClose={busy ? undefined : () => setPayOpen(false)}
-        title={`Record payment — due ${formatMoney(invoice.dueAmount)}`}
+        title="Record payment"
+        description={`${formatMoney(invoice.dueAmount)} outstanding on ${invoice.invoiceId}.`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setPayOpen(false)} disabled={busy}>
@@ -298,6 +536,7 @@ export default function InvoiceDetailsPage() {
         }
       >
         <form id="payment-form" onSubmit={handlePay} noValidate className="space-y-4">
+          {payError && <Alert tone="error">{payError}</Alert>}
           <Input
             label="Amount"
             type="number"
@@ -330,45 +569,29 @@ export default function InvoiceDetailsPage() {
         </form>
       </Modal>
 
-      {/* Refund modal (admin) */}
+      {/* Refund (admin) */}
       <Modal
         open={Boolean(refunding)}
         onClose={busy ? undefined : () => setRefunding(null)}
-        title={`Refund ${refunding?.paymentId ?? ''}`}
+        title="Record refund"
+        description={
+          refunding
+            ? `${formatMoney(refunding.amount)} was taken on ${refunding.paymentId}.`
+            : undefined
+        }
         footer={
           <>
             <Button variant="secondary" onClick={() => setRefunding(null)} disabled={busy}>
               Cancel
             </Button>
-            <Button
-              variant="danger"
-              loading={busy}
-              onClick={async () => {
-                if (!refunding) return;
-                const amount = Number(refundForm.amount);
-                if (!Number.isFinite(amount) || amount <= 0) {
-                  setError('Enter a positive refund amount.');
-                  return;
-                }
-                const target = refunding;
-                setRefunding(null);
-                await act(
-                  () =>
-                    recordRefund({
-                      paymentId: target._id,
-                      amount,
-                      notes: refundForm.notes.trim() || undefined,
-                    }),
-                  'Refund recorded.'
-                );
-              }}
-            >
+            <Button variant="danger" loading={busy} onClick={handleRefund}>
               Record refund
             </Button>
           </>
         }
       >
         <div className="space-y-4">
+          {refundError && <Alert tone="error">{refundError}</Alert>}
           <Input
             label="Refund amount"
             type="number"
@@ -384,7 +607,7 @@ export default function InvoiceDetailsPage() {
             label="Notes"
             value={refundForm.notes}
             onChange={(e) => setRefundForm((f) => ({ ...f, notes: e.target.value }))}
-            hint="Optional"
+            hint="Optional — why the money is going back"
           />
         </div>
       </Modal>

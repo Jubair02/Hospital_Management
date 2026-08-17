@@ -66,11 +66,16 @@ export const validateCreateUser: RequestHandler = (req, _res, next) => {
 
 /** Request-shape validation for PATCH /api/users/:id. */
 export const validateUpdateUser: RequestHandler = (req, _res, next) => {
-  const { firstName, lastName, email, password, role, phone } = (req.body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { firstName, lastName, email, password, role, phone, assignedWards } = (req.body ??
+    {}) as Record<string, unknown>;
   const errors: string[] = [];
+
+  if (
+    assignedWards !== undefined &&
+    (!Array.isArray(assignedWards) || assignedWards.some((id) => !isNonEmptyString(id)))
+  ) {
+    errors.push('Assigned wards must be a list of ward ids.');
+  }
 
   if (firstName !== undefined && !isNonEmptyString(firstName)) {
     errors.push('First name cannot be empty.');
@@ -123,6 +128,56 @@ export const validateStatusUpdate: RequestHandler = (req, _res, next) => {
 };
 
 /** Request-shape validation for POST /api/auth/change-password. */
+/**
+ * A user editing their own staff account.
+ *
+ * The accepted set is deliberately three fields. `email` is the sign-in
+ * credential, so letting someone change it unverified turns a borrowed
+ * session into a permanent account takeover; `role` and `status` are
+ * privilege, and are the self-escalation guard `updateUser` already carries.
+ * Anything outside the list is rejected rather than ignored, so a client
+ * sending `role` learns that it did nothing instead of assuming it worked.
+ */
+export const validateUpdateOwnProfile: RequestHandler = (req, _res, next) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const allowed = ['firstName', 'lastName', 'phone'];
+  const errors: string[] = [];
+
+  const rejected = Object.keys(body).filter((key) => !allowed.includes(key));
+  if (rejected.length > 0) {
+    errors.push(
+      `${rejected.join(', ')} cannot be changed here. Ask an administrator to update your ${
+        rejected.includes('email') ? 'sign-in email' : 'account'
+      }.`
+    );
+  }
+
+  for (const field of ['firstName', 'lastName'] as const) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (typeof value !== 'string' || value.trim().length === 0 || value.trim().length > 50) {
+      errors.push(`${field === 'firstName' ? 'First' : 'Last'} name must be 1–50 characters.`);
+    }
+  }
+
+  // Optional, and clearable: an empty string means "remove the number".
+  if (body.phone !== undefined) {
+    if (typeof body.phone !== 'string' || body.phone.trim().length > 20) {
+      errors.push('Phone must be 20 characters or fewer.');
+    }
+  }
+
+  if (!allowed.some((field) => body[field] !== undefined)) {
+    errors.push('Nothing to update.');
+  }
+
+  if (errors.length) {
+    return next(new ApiError(400, errors.join(' ')));
+  }
+
+  next();
+};
+
 export const validateChangePassword: RequestHandler = (req, _res, next) => {
   const { currentPassword, newPassword } = (req.body ?? {}) as Record<string, unknown>;
   const errors: string[] = [];
