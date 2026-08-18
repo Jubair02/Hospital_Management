@@ -10,7 +10,7 @@ import {
   verifyLabResult,
 } from '../../services/laboratoryService';
 import { getErrorMessage } from '../../services/api';
-import { canProcessLab } from '../../utils/permissions';
+import { canCollectSample, canProcessLab } from '../../utils/permissions';
 import { formatDate } from '../../utils/date';
 import type { LabOrder, LabResult, LabSample } from '../../types';
 import Button from '../../components/ui/Button';
@@ -32,6 +32,8 @@ export default function LabOrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { role } = useAuth();
   const canProcess = canProcessLab(role);
+  // The draw happens on the ward; the rest of the workflow is bench work.
+  const canCollect = canCollectSample(role);
 
   const [order, setOrder] = useState<LabOrder | null>(null);
   const [samples, setSamples] = useState<LabSample[]>([]);
@@ -196,17 +198,19 @@ export default function LabOrderDetailsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <SampleStatusBadge status={sample.status} />
+                {canCollect && workable && sample.status === 'pending' && (
+                  <Button
+                    size="sm"
+                    loading={busy}
+                    onClick={() =>
+                      act(() => collectLabSample(sample._id), `Sample ${sample.sampleId} collected.`)
+                    }
+                  >
+                    Collect
+                  </Button>
+                )}
                 {canProcess && workable && sample.status === 'pending' && (
                   <>
-                    <Button
-                      size="sm"
-                      loading={busy}
-                      onClick={() =>
-                        act(() => collectLabSample(sample._id), `Sample ${sample.sampleId} collected.`)
-                      }
-                    >
-                      Collect
-                    </Button>
                     <Button
                       variant="danger"
                       size="sm"

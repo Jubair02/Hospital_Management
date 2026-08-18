@@ -8,6 +8,7 @@ import type { CreateUserPayload, Role, UpdateUserPayload, User } from '../../typ
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Select, { type SelectOption } from '../ui/Select';
+import WardAssignmentField from './WardAssignmentField';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
 
@@ -27,6 +28,7 @@ interface FormState {
   phone: string;
   role: Role | '';
   password: string;
+  assignedWards: string[];
 }
 
 type FormErrors = Partial<Record<keyof FormState, string>>;
@@ -38,6 +40,7 @@ const emptyForm: FormState = {
   phone: '',
   role: '',
   password: '',
+  assignedWards: [],
 };
 
 interface UserFormModalProps {
@@ -73,6 +76,7 @@ export default function UserFormModal({ open, user = null, onClose, onSaved }: U
             phone: user.phone ?? '',
             role: user.role,
             password: '',
+            assignedWards: user.assignedWards ?? [],
           }
         : emptyForm
     );
@@ -128,6 +132,10 @@ export default function UserFormModal({ open, user = null, onClose, onSaved }: U
               role: form.role as Role,
             };
         if (form.password) payload.password = form.password;
+        // Ward assignment is a nursing concept; the server rejects it for any
+        // other role, so it is only sent when the account is (or is becoming)
+        // a nurse.
+        if (form.role === 'nurse') payload.assignedWards = form.assignedWards;
         saved = await updateUser(user._id, payload);
       } else {
         const payload: CreateUserPayload = {
@@ -236,6 +244,16 @@ export default function UserFormModal({ open, user = null, onClose, onSaved }: U
             />
           )}
         </div>
+
+        {/* Only nurses are scoped by ward, and only on an existing account:
+            wards are assigned once the person exists, not while typing their
+            name. The server refuses the field for every other role. */}
+        {isEdit && form.role === 'nurse' && (
+          <WardAssignmentField
+            value={form.assignedWards}
+            onChange={(assignedWards) => setForm((f) => ({ ...f, assignedWards }))}
+          />
+        )}
 
         {/* Patient logins must be linked to a Patient record, so they are
             issued from that record rather than here. */}

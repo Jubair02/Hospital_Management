@@ -8,6 +8,8 @@ import {
   canEditPatient,
   canViewClinical,
   canViewLabOrders,
+  canViewNursingRecord,
+  canWriteNursingRecord,
   patientsListPath,
 } from '../../utils/permissions';
 import { calculateAge, formatDate } from '../../utils/date';
@@ -24,6 +26,7 @@ import PortalAccountCard from '../../components/patients/PortalAccountCard';
 import EmergencyContactCard from '../../components/patients/EmergencyContactCard';
 import PatientAppointmentsCard from '../../components/appointments/PatientAppointmentsCard';
 import ConsultationHistoryCard from '../../components/consultations/ConsultationHistoryCard';
+import NursingRecordCard from '../../components/nursing/NursingRecordCard';
 import PatientLabHistoryCard from '../../components/laboratory/PatientLabHistoryCard';
 import PatientBillingHistoryCard from '../../components/billing/PatientBillingHistoryCard';
 import PatientAdmissionsCard from '../../components/inpatient/PatientAdmissionsCard';
@@ -86,7 +89,14 @@ function Vital({ label, value, tone = 'default' }: {
   );
 }
 
-type TabKey = 'overview' | 'appointments' | 'consultations' | 'laboratory' | 'admissions' | 'billing';
+type TabKey =
+  | 'overview'
+  | 'appointments'
+  | 'consultations'
+  | 'nursing'
+  | 'laboratory'
+  | 'admissions'
+  | 'billing';
 
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -178,6 +188,7 @@ export default function PatientProfilePage() {
     { key: 'overview', label: 'Overview', visible: true },
     { key: 'appointments', label: 'Appointments', visible: true },
     { key: 'consultations', label: 'Consultations', visible: canViewClinical(role) },
+    { key: 'nursing', label: 'Nursing', visible: canViewNursingRecord(role) },
     { key: 'laboratory', label: 'Laboratory', visible: canViewLabOrders(role) },
     { key: 'admissions', label: 'Admissions', visible: canViewClinical(role) },
     { key: 'billing', label: 'Billing', visible: role === 'admin' || role === 'receptionist' },
@@ -359,6 +370,15 @@ export default function PatientProfilePage() {
       {/* Clinical timeline — receptionists have no clinical access */}
       {activeTab === 'consultations' && canViewClinical(role) && (
         <ConsultationHistoryCard patientMongoId={patient._id} />
+      )}
+
+      {/* The bedside record: observations, doses, and notes */}
+      {activeTab === 'nursing' && canViewNursingRecord(role) && (
+        <NursingRecordCard
+          patientId={patient._id}
+          patientName={`${patient.firstName} ${patient.lastName}`}
+          canWrite={canWriteNursingRecord(role)}
+        />
       )}
 
       {/* Laboratory history — same clinical visibility rules */}

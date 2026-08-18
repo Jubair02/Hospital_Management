@@ -21,6 +21,8 @@ import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
 import { AdmissionStatusBadge } from '../../components/inpatient/InpatientBadges';
+import NursingRecordCard from '../../components/nursing/NursingRecordCard';
+import { canViewNursingRecord, canWriteNursingRecord } from '../../utils/permissions';
 
 /** One reading in the strip under the patient's name. */
 function Vital({ label, value }: { label: string; value: string }) {
@@ -322,6 +324,16 @@ export default function AdmissionDetailsPage() {
           </dl>
         </Card>
       </div>
+
+      {/* The care given during this stay, above the administrative history of
+          where the patient has been moved. */}
+      {admission.patientId && canViewNursingRecord(role) && (
+        <NursingRecordCard
+          patientId={admission.patientId._id}
+          patientName={patientName ?? undefined}
+          canWrite={canWriteNursingRecord(role) && admission.isActive}
+        />
+      )}
 
       <Card title="Transfer history">
         {transfers.length === 0 ? (

@@ -8,13 +8,14 @@ import type {
   PharmacyPrescription,
   PrescriptionFulfillment,
 } from '../../types';
-import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
+import Select from '../../components/ui/Select';
+import FilterBar from '../../components/ui/FilterBar';
 import Pagination from '../../components/ui/Pagination';
 import PageHeader from '../../components/ui/PageHeader';
 
@@ -31,13 +32,28 @@ export default function PharmacyPrescriptionsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [fulfillment, setFulfillment] = useState('');
   const [page, setPage] = useState(1);
+
+  const hasFilters = Boolean(search || fulfillment);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setFulfillment('');
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getPharmacyPrescriptions({ page, limit: 10, search: search || undefined });
+      const data = await getPharmacyPrescriptions({
+        page,
+        limit: 10,
+        search: search || undefined,
+        fulfillment: (fulfillment || undefined) as 'outstanding' | undefined,
+      });
       setConsultations(data.consultations);
       setFulfillments(data.fulfillments);
       setPagination(data.pagination);
@@ -46,7 +62,7 @@ export default function PharmacyPrescriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, fulfillment]);
 
   useEffect(() => {
     load();
@@ -124,16 +140,37 @@ export default function PharmacyPrescriptionsPage() {
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
-        <div className="max-w-md">
+      <FilterBar
+        total={pagination.total}
+        noun="prescription"
+        active={hasFilters}
+        loading={loading}
+        onClear={clearFilters}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <Input
             placeholder="Search by patient name or ID…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             aria-label="Search prescriptions"
           />
+          <Select
+            aria-label="Filter by fulfillment"
+            value={fulfillment}
+            onChange={(e) => {
+              setFulfillment(e.target.value);
+              setPage(1);
+            }}
+            options={[
+              { value: 'outstanding', label: 'Outstanding' },
+              { value: 'pending', label: 'Not started' },
+              { value: 'partial', label: 'Partly dispensed' },
+              { value: 'dispensed', label: 'Fully dispensed' },
+            ]}
+            placeholder="Any fulfillment"
+          />
         </div>
-      </Card>
+      </FilterBar>
 
       <Table
         columns={columns}

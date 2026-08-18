@@ -28,6 +28,9 @@ import Ward from '../models/Ward.js';
 import Bed from '../models/Bed.js';
 import Admission from '../models/Admission.js';
 import BedTransfer from '../models/BedTransfer.js';
+import Observation from '../models/Observation.js';
+import MedicationAdministration from '../models/MedicationAdministration.js';
+import NursingNote from '../models/NursingNote.js';
 import Notification from '../models/Notification.js';
 import AuditLog from '../models/AuditLog.js';
 import SystemSetting from '../models/SystemSetting.js';
@@ -99,6 +102,9 @@ export function setupTestDB(): void {
       Bed.deleteMany({}),
       Admission.deleteMany({}),
       BedTransfer.deleteMany({}),
+      Observation.deleteMany({}),
+      MedicationAdministration.deleteMany({}),
+      NursingNote.deleteMany({}),
       Notification.deleteMany({}),
       AuditLog.deleteMany({}),
       SystemSetting.deleteMany({}),

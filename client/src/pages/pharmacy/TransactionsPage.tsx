@@ -3,11 +3,12 @@ import { getTransactions } from '../../services/pharmacyService';
 import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/date';
 import type { Pagination as PaginationInfo, StockTransaction } from '../../types';
-import Card from '../../components/ui/Card';
 import Badge, { type BadgeTone } from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
+import EmptyState from '../../components/ui/EmptyState';
+import FilterBar from '../../components/ui/FilterBar';
 import Pagination from '../../components/ui/Pagination';
 import PageHeader from '../../components/ui/PageHeader';
 
@@ -31,6 +32,13 @@ export default function TransactionsPage() {
   const [error, setError] = useState('');
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
+
+  const hasFilters = Boolean(type);
+
+  const clearFilters = () => {
+    setType('');
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,7 +115,13 @@ export default function TransactionsPage() {
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
+      <FilterBar
+        total={pagination.total}
+        noun="transaction"
+        active={hasFilters}
+        loading={loading}
+        onClear={clearFilters}
+      >
         <div className="max-w-xs">
           <Select
             aria-label="Filter by type"
@@ -120,13 +134,22 @@ export default function TransactionsPage() {
             placeholder="All types"
           />
         </div>
-      </Card>
+      </FilterBar>
 
       <Table
         columns={columns}
         rows={transactions}
         loading={loading}
-        emptyState={<p className="text-center text-sm text-slate-500">No transactions yet.</p>}
+        emptyState={
+          <EmptyState
+            title={hasFilters ? 'No transactions of that type' : 'No transactions yet'}
+            description={
+              hasFilters
+                ? 'Clear the filter to see the whole ledger.'
+                : 'Receiving stock, dispensing, and adjustments all write a line here.'
+            }
+          />
+        }
         footer={
           <Pagination
             page={pagination.page}

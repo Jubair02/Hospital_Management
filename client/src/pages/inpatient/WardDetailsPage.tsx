@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { canSetBedStatus } from '../../utils/permissions';
 import {
   createBed,
   getWardById,
@@ -25,7 +26,12 @@ export default function WardDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { role } = useAuth();
   const manage = role === 'admin';
-  const canOperate = role === 'admin' || role === 'receptionist';
+  /**
+   * Whether a bed is free, reserved, or out of service is observed on the
+   * ward, and nurses are the staff standing there when it changes — so this is
+   * wider than the admissions operations above it, matching the server.
+   */
+  const canOperate = canSetBedStatus(role);
 
   const [ward, setWard] = useState<Ward | null>(null);
   const [beds, setBeds] = useState<HospitalBed[]>([]);

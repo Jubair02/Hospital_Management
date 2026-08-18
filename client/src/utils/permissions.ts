@@ -131,9 +131,41 @@ export const canReverseBilling = (role: Role | null): boolean => role === 'admin
 export const canProcessLab = (role: Role | null): boolean =>
   role === 'admin' || role === 'lab_technician';
 
+/**
+ * Recording that a specimen was drawn.
+ *
+ * Wider than the rest of the laboratory workflow because the draw happens on
+ * the ward, not at the bench — nurses take the sample, so they are the ones
+ * able to say it was taken. Rejecting a specimen stays with `canProcessLab`:
+ * that is a judgement about specimen quality made in the laboratory.
+ */
+export const canCollectSample = (role: Role | null): boolean =>
+  canProcessLab(role) || role === 'nurse';
+
 /** Test/category catalog management is admin only. */
 export const canManageLabCatalog = (role: Role | null): boolean => role === 'admin';
 
 /** Who may open lab orders (backend further scopes doctor/nurse). */
 export const canViewLabOrders = (role: Role | null): boolean =>
   role === 'admin' || role === 'lab_technician' || role === 'doctor' || role === 'nurse';
+
+// ---------------------------------------------------------------------------
+// Nursing record — mirrors backend RBAC.
+// ---------------------------------------------------------------------------
+
+/**
+ * Who may write observations, doses, and notes at a bedside.
+ *
+ * The server additionally narrows a nurse to the wards they are assigned to,
+ * which the client cannot know without asking. So this answers "is this a role
+ * that records care", and a 403 naming the ward answers the rest.
+ */
+export const canWriteNursingRecord = (role: Role | null): boolean =>
+  role === 'admin' || role === 'doctor' || role === 'nurse';
+
+/** Reading the bedside record — the same clinical audience. */
+export const canViewNursingRecord = canWriteNursingRecord;
+
+/** Marking a bed clean, occupied, or out of service. */
+export const canSetBedStatus = (role: Role | null): boolean =>
+  role === 'admin' || role === 'receptionist' || role === 'nurse';

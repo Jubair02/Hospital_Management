@@ -21,6 +21,8 @@ import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import FullPageSpinner from '../../components/ui/FullPageSpinner';
+import BackLink from '../../components/ui/BackLink';
+import PageHeader, { SectionHeading } from '../../components/ui/PageHeader';
 
 interface LineState {
   medicineId: string;
@@ -128,6 +130,12 @@ export default function PharmacyPrescriptionDetailPage() {
     }
   };
 
+  /** How many lines the pharmacist has ticked — drives the pinned bar. */
+  const selectedCount = Object.values(lines).filter((line) => line.selected).length;
+
+  /** Progress through the prescription, for the rail. */
+  const dispensedCount = fulfillments.filter((f) => f.status === 'dispensed').length;
+
   if (loading) return <FullPageSpinner label="Loading prescription" />;
 
   if (!consultation) {
@@ -147,42 +155,31 @@ export default function PharmacyPrescriptionDetailPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{consultation.consultationId}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {formatDate(consultation.consultationDate)}
-            {consultation.patientId && (
-              <>
-                {' · '}
-                {consultation.patientId.firstName} {consultation.patientId.lastName} (
-                {consultation.patientId.patientId})
-              </>
-            )}
-            {consultation.doctorId && (
-              <>
-                {' · '}Dr. {consultation.doctorId.firstName} {consultation.doctorId.lastName}
-              </>
-            )}
-          </p>
-        </div>
-        <Link to="/pharmacy/prescriptions">
-          <Button variant="ghost">Back to list</Button>
-        </Link>
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-2">
+      <div className="space-y-3">
+        <BackLink to="/pharmacy/prescriptions" label="Prescriptions" />
+
+        <PageHeader
+          eyebrow="Prescription"
+          title={consultation.consultationId}
+          subtitle={`Prescribed ${formatDate(consultation.consultationDate)}`}
+        />
       </div>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Alert tone="info">
-        The doctor's prescription is read-only. Select stock medicines and quantities to dispense —
-        batches are chosen automatically, earliest expiry first.
-      </Alert>
+      {/* Lines on the left, who and what happened on the right. The page used
+          to be one long column, so the patient's name and the dispensing
+          history sat a scroll apart from the lines they describe. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <SectionHeading
+            title="Prescribed medicines"
+            hint="Read-only from the doctor. Batches are chosen automatically, earliest expiry first."
+          />
 
-      {/* Prescription lines */}
-      <div className="space-y-4">
-        {consultation.prescriptions.map((rx, index) => {
+          {consultation.prescriptions.map((rx, index) => {
           const fulfillment = fulfillmentFor(index);
           const line = lineState(index);
           const done = fulfillment?.status === 'dispensed';
@@ -264,16 +261,46 @@ export default function PharmacyPrescriptionDetailPage() {
             </Card>
           );
         })}
-      </div>
+        </div>
 
-      <div className="flex justify-end">
-        <Button loading={dispensing} onClick={handleDispense}>
-          {dispensing ? 'Dispensing…' : 'Dispense selected'}
-        </Button>
-      </div>
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <Card title="Prescription" icon="clipboard">
+            <dl className="space-y-3 text-sm">
+              {consultation.patientId && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-[0.08em] text-slate-400">
+                    Patient
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-slate-900">
+                    {consultation.patientId.firstName} {consultation.patientId.lastName}
+                  </dd>
+                  <dd className="tabular-nums text-xs text-slate-500">
+                    {consultation.patientId.patientId}
+                  </dd>
+                </div>
+              )}
+              {consultation.doctorId && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-[0.08em] text-slate-400">
+                    Prescribed by
+                  </dt>
+                  <dd className="mt-0.5 text-slate-700">
+                    Dr. {consultation.doctorId.firstName} {consultation.doctorId.lastName}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-[0.08em] text-slate-400">
+                  Lines
+                </dt>
+                <dd className="mt-0.5 tabular-nums text-slate-700">
+                  {dispensedCount} of {consultation.prescriptions.length} fully dispensed
+                </dd>
+              </div>
+            </dl>
+          </Card>
 
-      {/* Dispensing history for this prescription */}
-      <Card title="Dispensing history" subtitle="Events for this prescription">
+          <Card title="Dispensing history" subtitle="Events for this prescription">
         {dispensings.length === 0 ? (
           <p className="text-sm text-slate-400">Nothing dispensed yet.</p>
         ) : (
@@ -301,9 +328,30 @@ export default function PharmacyPrescriptionDetailPage() {
                 </ul>
               </li>
             ))}
-          </ul>
-        )}
-      </Card>
+            </ul>
+          )}
+          </Card>
+        </aside>
+      </div>
+
+      {/* Pinned: the lines are taller than the viewport, so the way to act on
+          them cannot live only at the bottom of the list. */}
+      {selectedCount > 0 && (
+        <div className="sticky bottom-0 -mx-1 px-1 pb-1 pt-2">
+          <div className="surface-card flex flex-col gap-3 p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+            <p aria-live="polite" className="text-sm font-medium text-slate-700">
+              {selectedCount} {selectedCount === 1 ? 'line' : 'lines'} selected to dispense
+            </p>
+            <Button
+              className="w-full sm:w-auto"
+              loading={dispensing}
+              onClick={handleDispense}
+            >
+              {dispensing ? 'Dispensing…' : 'Dispense selected'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

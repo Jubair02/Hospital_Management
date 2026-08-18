@@ -26,7 +26,7 @@ const CARDS: CardSpec[] = [
   { key: 'activeMedicines', label: 'Active medicines', hint: 'Currently dispensable', icon: 'check', tone: 'teal', to: '/pharmacy/medicines' },
   { key: 'lowStockCount', label: 'Low stock', hint: 'Below reorder level', icon: 'alert', tone: 'amber', alert: true, to: '/pharmacy/inventory' },
   { key: 'expiredBatches', label: 'Expired batches', hint: 'With remaining units', icon: 'alert', tone: 'rose', alert: true, to: '/pharmacy/inventory' },
-  { key: 'pendingPrescriptions', label: 'Pending prescriptions', hint: 'Awaiting first dispensing', icon: 'clipboard', tone: 'amber', to: '/pharmacy/prescriptions' },
+  { key: 'outstandingPrescriptions', label: 'Outstanding', hint: 'Not started or partly dispensed', icon: 'clipboard', tone: 'amber', to: '/pharmacy/prescriptions' },
   { key: 'todaysDispensings', label: "Today's dispensing", hint: 'Dispensing events today', icon: 'clock', tone: 'brand' },
 ];
 

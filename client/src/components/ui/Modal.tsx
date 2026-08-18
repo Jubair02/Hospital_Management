@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   open: boolean;
@@ -166,7 +167,16 @@ export default function Modal({
 
   if (!open) return null;
 
-  return (
+  // Rendered into the body rather than in place. `position: fixed` and `z-50`
+  // are both relative to the nearest stacking context, and the shell wraps
+  // every page in an entrance animation (`.rise` in DashboardLayout) — an
+  // animation on opacity and transform creates one. A dialog rendered inline
+  // is therefore sealed inside that context at its parent's level, which paints
+  // it *under* the sticky header (z-20) and the navigation rail (z-40): the
+  // title row disappears behind the header and the backdrop stops short of the
+  // rail. No z-index on the dialog can escape that; only leaving the subtree
+  // can.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
       role="dialog"
@@ -242,6 +252,7 @@ export default function Modal({
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

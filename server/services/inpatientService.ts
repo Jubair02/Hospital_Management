@@ -275,7 +275,7 @@ export const transferPatient = async (
     dedupeKey: `admission:transfer:in:${transfer._id}`,
   });
 
-  await notifyWardNurses(fromWard._id, {
+  await notifyWardNurses(fromWardId, {
     type: 'admission',
     title: 'Patient left your ward',
     message: `${admission.admissionId} transferred to ${toWard.name}, bed ${toBed.bedNumber}.`,

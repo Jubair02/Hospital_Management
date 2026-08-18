@@ -7,6 +7,7 @@ import type { DispensingRecord, Pagination as PaginationInfo } from '../../types
 import Alert from '../../components/ui/Alert';
 import Button from '../../components/ui/Button';
 import Table, { type Column } from '../../components/ui/Table';
+import EmptyState from '../../components/ui/EmptyState';
 import Pagination from '../../components/ui/Pagination';
 import PageHeader from '../../components/ui/PageHeader';
 
@@ -101,7 +102,12 @@ export default function DispensingHistoryPage() {
         columns={columns}
         rows={records}
         loading={loading}
-        emptyState={<p className="text-center text-sm text-slate-500">Nothing dispensed yet.</p>}
+        emptyState={
+          <EmptyState
+            title="Nothing dispensed yet"
+            description="Every dispensing event is recorded here as soon as medicines leave the counter."
+          />
+        }
         footer={
           <Pagination
             page={pagination.page}

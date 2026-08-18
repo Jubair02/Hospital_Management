@@ -13,6 +13,7 @@ import {
   dispense,
   getPharmacyStats,
   stockLookupStages,
+  prescriptionFulfillmentStates,
   nextCategoryId,
   nextMedicineId,
   type DispenseInput,
@@ -377,6 +378,38 @@ export const getPharmacyPrescriptions = asyncHandler(async (req, res) => {
       { consultationId: rx },
       { patientId: { $in: patients.map((p) => p._id) } },
     ];
+  }
+
+  /**
+   * Optional narrowing by how much of the prescription has actually gone out.
+   *
+   * Fulfillment lives in its own collection, one row per prescription LINE, so
+   * "is this prescription finished" is a comparison between a count of those
+   * rows and the number of lines on the consultation — not a field anything
+   * could be matched on. Without this the endpoint could only return every
+   * completed prescription ever dispensed, which made a dispensing queue
+   * impossible to express: the caller got finished work mixed in and no
+   * trustworthy count of what was outstanding.
+   *
+   * Resolved to a set of ids and handed to the ordinary query below, so the
+   * populate, sort, and pagination that already worked keep working.
+   */
+  const wanted = queryString(req.query.fulfillment);
+  if (wanted) {
+    if (!['pending', 'partial', 'dispensed', 'outstanding'].includes(wanted)) {
+      throw new ApiError(
+        400,
+        'fulfillment must be one of: pending, partial, dispensed, outstanding.'
+      );
+    }
+
+    const states = await prescriptionFulfillmentStates();
+
+    // "outstanding" is the queue: anything a pharmacist still has work on.
+    const matches = states.filter((entry) =>
+      wanted === 'outstanding' ? entry.state !== 'dispensed' : entry.state === wanted
+    );
+    filter._id = { $in: matches.map((entry) => entry._id) };
   }
 
   const [consultations, total] = await Promise.all([

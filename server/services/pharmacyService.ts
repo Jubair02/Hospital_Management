@@ -317,6 +317,24 @@ export const dispense = async (
         }
       }
 
+      /**
+       * The medicine is fixed at first dispensing.
+       *
+       * Without this, a later dispensing of the same line could name a
+       * different medicine: the fulfillment row still said Paracetamol and
+       * counted the units against it, while the stock ledger recorded
+       * Cetirizine leaving the shelf. Two records of one event that disagree
+       * about what was handed over — and the patient's chart would show the
+       * wrong drug dispensed. The UI never offers the choice after the first
+       * dispensing, but the API accepted it.
+       */
+      if (!fulfillment.medicineId.equals(medicine._id)) {
+        throw new ApiError(
+          400,
+          `"${line.medicineName}" was already dispensed as ${fulfillment.medicineName}. Continue with that medicine, or adjust stock separately.`
+        );
+      }
+
       // Over-dispensing guard: only succeeds while enough remains.
       const reserved = await PrescriptionFulfillment.findOneAndUpdate(
         { _id: fulfillment._id, remaining: { $gte: item.quantity } },
@@ -447,6 +465,70 @@ export const dispense = async (
 // ---------------------------------------------------------------------------
 
 /** Pipeline stages that attach `totalStock` (usable units) to medicines. */
+export type FulfillmentState = 'pending' | 'partial' | 'dispensed';
+
+/**
+ * How far each completed prescription has actually been dispensed.
+ *
+ * Fulfillment is stored one row per prescription LINE, so "is this prescription
+ * finished" is a comparison between a count of those rows and the number of
+ * lines the doctor wrote — not a field anything can be matched on. Every caller
+ * that needs the answer gets it from here, because the dashboard tile and the
+ * dispensing queue disagreeing about how much work is left is worse than either
+ * of them being wrong on its own.
+ */
+export const prescriptionFulfillmentStates = async (): Promise<
+  { _id: Types.ObjectId; state: FulfillmentState }[]
+> =>
+  Consultation.aggregate([
+    { $match: { status: 'completed', 'prescriptions.0': { $exists: true } } },
+    {
+      $lookup: {
+        from: PrescriptionFulfillment.collection.name,
+        localField: '_id',
+        foreignField: 'consultationId',
+        as: 'lines',
+      },
+    },
+    {
+      $project: {
+        lineCount: { $size: '$prescriptions' },
+        started: { $size: '$lines' },
+        dispensed: {
+          $size: {
+            $filter: {
+              input: '$lines',
+              as: 'line',
+              cond: { $eq: ['$$line.status', 'dispensed'] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        state: {
+          $switch: {
+            branches: [
+              { case: { $eq: ['$dispensed', '$lineCount'] }, then: 'dispensed' },
+              { case: { $gt: ['$started', 0] }, then: 'partial' },
+            ],
+            default: 'pending',
+          },
+        },
+      },
+    },
+  ]);
+
+/**
+ * Prescriptions a pharmacist still has work on — nothing dispensed yet, or
+ * only some lines done. This is the dispensing queue.
+ */
+export const outstandingPrescriptionIds = async (): Promise<Types.ObjectId[]> => {
+  const states = await prescriptionFulfillmentStates();
+  return states.filter((entry) => entry.state !== 'dispensed').map((entry) => entry._id);
+};
+
 export const stockLookupStages = (): PipelineStage[] => [
   {
     $lookup: {
@@ -487,7 +569,7 @@ export interface PharmacyStats {
   activeMedicines: number;
   lowStockCount: number;
   expiredBatches: number;
-  pendingPrescriptions: number;
+  outstandingPrescriptions: number;
   todaysDispensings: number;
 }
 
@@ -495,7 +577,7 @@ export const getPharmacyStats = async (): Promise<PharmacyStats> => {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [totalMedicines, activeMedicines, lowStockAgg, expiredBatches, totalRx, touchedIds, todaysDispensings] =
+  const [totalMedicines, activeMedicines, lowStockAgg, expiredBatches, outstandingIds, todaysDispensings] =
     await Promise.all([
       Medicine.countDocuments({}),
       Medicine.countDocuments({ status: 'active' }),
@@ -506,8 +588,7 @@ export const getPharmacyStats = async (): Promise<PharmacyStats> => {
         { $count: 'count' },
       ]),
       InventoryBatch.countDocuments({ expiryDate: { $lte: new Date() }, quantity: { $gt: 0 } }),
-      Consultation.countDocuments({ status: 'completed', 'prescriptions.0': { $exists: true } }),
-      DispensingRecord.distinct('consultationId'),
+      outstandingPrescriptionIds(),
       DispensingRecord.countDocuments({ createdAt: { $gte: startOfDay } }),
     ]);
 
@@ -516,8 +597,13 @@ export const getPharmacyStats = async (): Promise<PharmacyStats> => {
     activeMedicines,
     lowStockCount: (lowStockAgg[0] as { count?: number } | undefined)?.count ?? 0,
     expiredBatches,
-    // Prescriptions awaiting their FIRST dispensing.
-    pendingPrescriptions: Math.max(totalRx - touchedIds.length, 0),
+    /**
+     * Everything still needing work, which is what the dispensing queue lists.
+     * This used to count only prescriptions never touched, so a half-dispensed
+     * one vanished from the tile while still sitting in the queue below it —
+     * the same board reporting two different amounts of work.
+     */
+    outstandingPrescriptions: outstandingIds.length,
     todaysDispensings,
   };
 };

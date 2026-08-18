@@ -166,7 +166,17 @@ export const getTransactions = async (
 // --- Prescriptions & dispensing ---
 
 export const getPharmacyPrescriptions = async (
-  params: { page?: number; limit?: number; search?: string } = {}
+  params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    /**
+     * Narrow by how much has actually gone out. `outstanding` is the queue —
+     * pending plus partially dispensed — which is what a dispensing list wants
+     * and what an unfiltered call cannot express.
+     */
+    fulfillment?: 'pending' | 'partial' | 'dispensed' | 'outstanding';
+  } = {}
 ): Promise<PharmacyPrescriptionsData> => {
   const { data } = await api.get<ApiResponse<PharmacyPrescriptionsData>>(
     '/pharmacy/prescriptions',

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import {
   createCategory,
   getCategories,
@@ -17,6 +16,7 @@ import Modal from '../../components/ui/Modal';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
 import PageHeader from '../../components/ui/PageHeader';
+import BackLink from '../../components/ui/BackLink';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<MedicineCategory[]>([]);
@@ -137,18 +137,17 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Medicine categories"
-        subtitle="Groups used to organize the catalog."
-        actions={
-          <div className="flex gap-2">
-            <Link to="/pharmacy/medicines">
-              <Button variant="ghost">Back to medicines</Button>
-            </Link>
-            <Button onClick={() => openForm(null)}>Add category</Button>
-          </div>
-        }
-      />
+      {/* The way back belongs above the title, not competing with the page's
+          own action — this is a child of the catalog, not a sibling of it. */}
+      <div className="space-y-3">
+        <BackLink to="/pharmacy/medicines" label="Medicines" />
+
+        <PageHeader
+          title="Medicine categories"
+          subtitle="Groups used to organize the catalog."
+          actions={<Button onClick={() => openForm(null)}>Add category</Button>}
+        />
+      </div>
 
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}

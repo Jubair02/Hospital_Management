@@ -33,13 +33,14 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ConsultationStatusBadge from '../../components/consultations/ConsultationStatusBadge';
 import ConsultationHistoryCard from '../../components/consultations/ConsultationHistoryCard';
 import LabOrdersCard from '../../components/laboratory/LabOrdersCard';
+import LatestObservationBanner from '../../components/nursing/LatestObservationBanner';
 import { DiagnosisEditor } from '../../components/consultations/DiagnosisEditor';
 import { PrescriptionEditor } from '../../components/consultations/PrescriptionEditor';
 import {
   VitalSignsFields,
   emptyVitals,
   validateVitals,
-  vitalsFromConsultation,
+  vitalsToFormState,
   vitalsToPayload,
   type VitalSignsFormState,
 } from '../../components/consultations/VitalSignsFields';
@@ -154,7 +155,7 @@ export default function ConsultationWorkbenchPage() {
 
   const hydrate = (c: Consultation) => {
     const nextForm = clinicalFromConsultation(c);
-    const nextVitals = vitalsFromConsultation(c.vitalSigns);
+    const nextVitals = vitalsToFormState(c.vitalSigns);
 
     setConsultation(c);
     setForm(nextForm);
@@ -527,6 +528,14 @@ export default function ConsultationWorkbenchPage() {
           ) : (
             <>
               <Card title="Vital signs" subtitle="Every field optional" icon="activity">
+                {/* What a nurse already measured, before the doctor measures
+                    again. Copying is explicit — the doctor signs for whatever
+                    ends up in their own record. */}
+                {patient && (
+                  <div className="mb-4">
+                    <LatestObservationBanner patientId={patient._id} onUse={setVitals} />
+                  </div>
+                )}
                 <VitalSignsFields value={vitals} onChange={setVitals} />
               </Card>
 

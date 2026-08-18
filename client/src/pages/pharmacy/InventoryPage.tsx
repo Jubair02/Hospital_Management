@@ -8,12 +8,12 @@ import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/date';
 import type { InventoryBatch, Medicine, Pagination as PaginationInfo } from '../../types';
 import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
+import FilterBar from '../../components/ui/FilterBar';
 import Pagination from '../../components/ui/Pagination';
 import StockInModal from '../../components/pharmacy/StockInModal';
 import AdjustStockModal from '../../components/pharmacy/AdjustStockModal';
@@ -56,6 +56,14 @@ export default function InventoryPage() {
       .then((data) => setMedicines(data.medicines))
       .catch(() => {});
   }, []);
+
+  const hasFilters = Boolean(view || medicineFilter);
+
+  const clearFilters = () => {
+    setView('');
+    setMedicineFilter('');
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,7 +160,13 @@ export default function InventoryPage() {
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
+      <FilterBar
+        total={pagination.total}
+        noun="batch"
+        active={hasFilters}
+        loading={loading}
+        onClear={clearFilters}
+      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Select
             aria-label="Filter by medicine"
@@ -178,7 +192,7 @@ export default function InventoryPage() {
             placeholder="All batches"
           />
         </div>
-      </Card>
+      </FilterBar>
 
       <Table
         columns={columns}

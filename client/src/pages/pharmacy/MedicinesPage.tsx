@@ -9,13 +9,13 @@ import {
 import { getErrorMessage } from '../../services/api';
 import type { Medicine, MedicineCategory, Pagination as PaginationInfo } from '../../types';
 import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Table, { type Column } from '../../components/ui/Table';
 import EmptyState from '../../components/ui/EmptyState';
+import FilterBar from '../../components/ui/FilterBar';
 import Pagination from '../../components/ui/Pagination';
 import MedicineFormModal from '../../components/pharmacy/MedicineFormModal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -49,6 +49,17 @@ export default function MedicinesPage() {
       .then(setCategories)
       .catch((err: unknown) => setError(getErrorMessage(err, 'Unable to load categories.')));
   }, []);
+
+  const hasFilters = Boolean(search || categoryFilter || statusFilter || lowOnly);
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setCategoryFilter('');
+    setStatusFilter('');
+    setLowOnly(false);
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -205,7 +216,13 @@ export default function MedicinesPage() {
       {notice && <Alert tone="success">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
-      <Card>
+      <FilterBar
+        total={pagination.total}
+        noun="medicine"
+        active={hasFilters}
+        loading={loading}
+        onClear={clearFilters}
+      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input
             placeholder="Search name, generic, brand, ID…"
@@ -237,20 +254,29 @@ export default function MedicinesPage() {
             ]}
             placeholder="All statuses"
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={lowOnly}
-              onChange={(e) => {
-                setLowOnly(e.target.checked);
-                setPage(1);
-              }}
-              className="h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+          {/* A toggle rather than a bare checkbox: at this size it has to sit
+              on the control line beside the selects, not float against it. */}
+          <button
+            type="button"
+            aria-pressed={lowOnly}
+            onClick={() => {
+              setLowOnly(!lowOnly);
+              setPage(1);
+            }}
+            className={`flex min-h-[2.625rem] items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors duration-200 ${
+              lowOnly
+                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                : 'border-line bg-white text-slate-600 hover:border-line-strong hover:text-slate-900'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 rounded-full ${lowOnly ? 'bg-amber-500' : 'bg-slate-300'}`}
             />
             Low stock only
-          </label>
+          </button>
         </div>
-      </Card>
+      </FilterBar>
 
       <Table
         columns={columns}
@@ -261,7 +287,13 @@ export default function MedicinesPage() {
             title="No medicines found"
             description="Try changing your search or filter, or add the first medicine."
             action={
-              <Button size="sm" onClick={() => setFormOpen(true)}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
                 Add medicine
               </Button>
             }

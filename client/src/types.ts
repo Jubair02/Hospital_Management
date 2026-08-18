@@ -30,6 +30,12 @@ export interface User {
    * having to search patients by email to find the same person.
    */
   patient?: { id: string; patientId: string };
+  /**
+   * Wards a nurse covers. Empty means unassigned, which the server treats as
+   * hospital-wide — the narrowing is opt-in, so an existing nurse keeps the
+   * access they had until someone assigns them.
+   */
+  assignedWards?: string[];
   createdAt: string;
   updatedAt: string;
   fullName?: string;
@@ -68,7 +74,7 @@ export interface CreateUserPayload {
   role: Role;
 }
 
-export type UpdateUserPayload = Partial<CreateUserPayload>;
+export type UpdateUserPayload = Partial<CreateUserPayload> & { assignedWards?: string[] };
 
 export interface UsersQuery {
   page?: number;
@@ -721,7 +727,8 @@ export interface PharmacyStats {
   activeMedicines: number;
   lowStockCount: number;
   expiredBatches: number;
-  pendingPrescriptions: number;
+  /** Prescriptions still needing work — nothing dispensed, or only some lines. */
+  outstandingPrescriptions: number;
   todaysDispensings: number;
 }
 
@@ -1702,3 +1709,79 @@ export const isAppointmentOverdue = (appointment: {
 }): boolean =>
   (appointment.status === 'scheduled' || appointment.status === 'confirmed') &&
   isBeforeToday(appointment.appointmentDate);
+
+// --- Nursing record -------------------------------------------------------
+// Written at the bedside rather than in a consultation: observations, doses
+// given, and the running account of a stay.
+
+/** Who wrote a bedside record. */
+export interface NursingAuthorRef {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  role?: Role;
+}
+
+export interface Observation {
+  _id: string;
+  observationId: string;
+  patientId: AppointmentPatientRef | null;
+  admissionId?: { _id: string; admissionId?: string } | null;
+  recordedBy: NursingAuthorRef | null;
+  recordedAt: string;
+  vitalSigns?: VitalSigns;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ObservationsListData {
+  observations: Observation[];
+  pagination: Pagination;
+}
+
+export const ADMINISTRATION_STATUSES = ['given', 'refused', 'held'] as const;
+export type AdministrationStatus = (typeof ADMINISTRATION_STATUSES)[number];
+
+export interface MedicationAdministration {
+  _id: string;
+  administrationId: string;
+  patientId: AppointmentPatientRef | null;
+  admissionId?: string | null;
+  consultationId?: string | null;
+  medicineName: string;
+  dosage: string;
+  route?: string;
+  status: AdministrationStatus;
+  administeredBy: NursingAuthorRef | null;
+  administeredAt: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface AdministrationsListData {
+  administrations: MedicationAdministration[];
+  pagination: Pagination;
+}
+
+export const NOTE_CATEGORIES = ['progress', 'handover'] as const;
+export type NoteCategory = (typeof NOTE_CATEGORIES)[number];
+
+export const NURSING_SHIFTS = ['day', 'evening', 'night'] as const;
+export type NursingShift = (typeof NURSING_SHIFTS)[number];
+
+export interface NursingNote {
+  _id: string;
+  noteId: string;
+  patientId: AppointmentPatientRef | null;
+  admissionId?: string | null;
+  authorId: NursingAuthorRef | null;
+  category: NoteCategory;
+  shift?: NursingShift;
+  body: string;
+  createdAt: string;
+}
+
+export interface NursingNotesListData {
+  notes: NursingNote[];
+  pagination: Pagination;
+}

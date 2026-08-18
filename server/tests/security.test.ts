@@ -469,8 +469,13 @@ describe('cross-user and cross-tenant access', () => {
       ['/api/reports/pharmacy', 'get', ['pharmacist']],
       ['/api/reports/laboratory', 'get', ['lab_technician']],
       ['/api/reports/clinical', 'get', ['doctor']],
-      ['/api/pharmacy/medicines', 'get', ['pharmacist']],
-      ['/api/laboratory/samples', 'get', ['lab_technician']],
+      // Nurses read the catalogue so a dose is charted against a real
+      // medicine rather than a typed drug name. Read-only — the writes below
+      // and the rest of the pharmacy module stay closed to them.
+      ['/api/pharmacy/medicines', 'get', ['pharmacist', 'nurse']],
+      // Ward nurses draw samples, so they see the queue and may record a
+      // collection. Rejecting a sample remains a bench judgement.
+      ['/api/laboratory/samples', 'get', ['lab_technician', 'nurse']],
       ['/api/billing/invoices', 'get', ['receptionist', 'doctor', 'nurse']],
       ['/api/inpatient/admissions', 'get', ['receptionist', 'doctor', 'nurse']],
       ['/api/patients', 'get', ['receptionist', 'doctor', 'nurse']],

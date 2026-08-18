@@ -15,8 +15,16 @@ export const emptyVitals: VitalSignsFormState = {
   height: '',
 };
 
-/** Tolerates an absent group: nothing measured reads the same as no container. */
-export const vitalsFromConsultation = (
+/**
+ * Measurements into editable strings.
+ *
+ * Named for the shape rather than the source: the same eight numbers now
+ * arrive from a consultation and from a nurse's observation, and both are
+ * edited in the same fields.
+ *
+ * Tolerates an absent group: nothing measured reads the same as no container.
+ */
+export const vitalsToFormState = (
   vitals: VitalSigns | undefined = {}
 ): VitalSignsFormState => ({
   temperature: vitals.temperature?.toString() ?? '',

@@ -155,7 +155,12 @@ export default function Sidebar({
         ...(role === ROLES.LAB_TECHNICIAN
           ? [nav('/laboratory/samples', 'Samples', 'inventory')]
           : []),
-        ...(role === ROLES.DOCTOR ? [nav('/laboratory/orders', 'Lab orders', 'flask')] : []),
+        // Doctors order tests; nurses read results and record the draw on
+        // the same page. Both reach it by route already — without this the
+        // page had no way in for a nurse.
+        ...(role === ROLES.DOCTOR || role === ROLES.NURSE
+          ? [nav('/laboratory/orders', 'Lab orders', 'flask')]
+          : []),
         ...(role === ROLES.ADMIN || role === ROLES.RECEPTIONIST
           ? [nav('/billing', 'Billing', 'cash')]
           : []),

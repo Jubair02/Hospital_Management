@@ -391,6 +391,105 @@ describe('prescription integration & dispensing', () => {
       .expect(403);
   });
 
+  it('filters the list by how much has actually been dispensed', async () => {
+    await stockIn(medId, { quantity: 100 }).expect(201);
+
+    const list = (fulfillment?: string) =>
+      request(app)
+        .get(`/api/pharmacy/prescriptions${fulfillment ? `?fulfillment=${fulfillment}` : ''}`)
+        .set(auth(pharmacistToken))
+        .expect(200);
+
+    const ids = (res: { body: { data: { consultations: Array<{ _id: string }> } } }) =>
+      res.body.data.consultations.map((c) => c._id);
+
+    // Two lines on this consultation, nothing dispensed yet.
+    expect(ids(await list('pending'))).toEqual([consultationId]);
+    expect(ids(await list('outstanding'))).toEqual([consultationId]);
+    expect(ids(await list('dispensed'))).toEqual([]);
+
+    // One of the two lines done — still work left, so still in the queue.
+    await dispense([
+      { prescriptionIndex: 0, medicineId: medId, quantity: 10, prescribedQuantity: 10 },
+    ]).expect(201);
+    expect(ids(await list('pending'))).toEqual([]);
+    expect(ids(await list('partial'))).toEqual([consultationId]);
+    expect(ids(await list('outstanding'))).toEqual([consultationId]);
+    expect(ids(await list('dispensed'))).toEqual([]);
+
+    // Both lines done — it leaves the queue, and the total says so.
+    await dispense([
+      { prescriptionIndex: 1, medicineId: medId, quantity: 5, prescribedQuantity: 5 },
+    ]).expect(201);
+    const outstanding = await list('outstanding');
+    expect(ids(outstanding)).toEqual([]);
+    expect(outstanding.body.data.pagination.total).toBe(0);
+    expect(ids(await list('dispensed'))).toEqual([consultationId]);
+
+    // Unfiltered still returns everything, as it always did.
+    expect(ids(await list())).toEqual([consultationId]);
+  });
+
+  it('counts outstanding work the same way the queue lists it', async () => {
+    await stockIn(medId, { quantity: 100 }).expect(201);
+
+    const stats = async () =>
+      (await request(app).get('/api/pharmacy/stats').set(auth(pharmacistToken)).expect(200)).body
+        .data.outstandingPrescriptions as number;
+    const queued = async () =>
+      (
+        await request(app)
+          .get('/api/pharmacy/prescriptions?fulfillment=outstanding')
+          .set(auth(pharmacistToken))
+          .expect(200)
+      ).body.data.pagination.total as number;
+
+    expect(await stats()).toBe(1);
+    expect(await queued()).toBe(1);
+
+    // One of two lines done. The tile used to drop to zero here while the
+    // queue still listed the prescription — one board, two answers.
+    await dispense([
+      { prescriptionIndex: 0, medicineId: medId, quantity: 10, prescribedQuantity: 10 },
+    ]).expect(201);
+    expect(await stats()).toBe(1);
+    expect(await queued()).toBe(1);
+
+    // Both lines done: it leaves the tile and the queue together.
+    await dispense([
+      { prescriptionIndex: 1, medicineId: medId, quantity: 5, prescribedQuantity: 5 },
+    ]).expect(201);
+    expect(await stats()).toBe(0);
+    expect(await queued()).toBe(0);
+  });
+
+  it('fixes the medicine at first dispensing', async () => {
+    await stockIn(medId, { quantity: 100 }).expect(201);
+    const other = (await createMedicine({ name: 'Cetirizine' }))._id;
+    await stockIn(other, { quantity: 100 }).expect(201);
+
+    await dispense([
+      { prescriptionIndex: 0, medicineId: medId, quantity: 4, prescribedQuantity: 10 },
+    ]).expect(201);
+
+    // Charging the rest of the same line to a different medicine would leave
+    // the fulfillment row and the stock ledger describing different drugs.
+    const res = await dispense([
+      { prescriptionIndex: 0, medicineId: other, quantity: 6 },
+    ]).expect(400);
+    expect(res.body.message).toMatch(/already dispensed as/i);
+
+    // The correct medicine still continues normally.
+    await dispense([{ prescriptionIndex: 0, medicineId: medId, quantity: 6 }]).expect(201);
+  });
+
+  it('rejects an unknown fulfillment filter', async () => {
+    await request(app)
+      .get('/api/pharmacy/prescriptions?fulfillment=maybe')
+      .set(auth(pharmacistToken))
+      .expect(400);
+  });
+
   it('fully dispenses a line: stock down, ledger written, fulfillment dispensed', async () => {
     await stockIn(medId, { quantity: 50 }).expect(201);
 
@@ -576,7 +675,7 @@ describe('GET /api/pharmacy/stats', () => {
       activeMedicines: 1,
       lowStockCount: 1,
       expiredBatches: 0,
-      pendingPrescriptions: 1,
+      outstandingPrescriptions: 1,
       todaysDispensings: 0,
     });
 
@@ -590,7 +689,10 @@ describe('GET /api/pharmacy/stats', () => {
       .expect(201);
 
     stats = (await request(app).get('/api/pharmacy/stats').set(auth(pharmacistToken)).expect(200)).body.data;
-    expect(stats.pendingPrescriptions).toBe(0);
+    // 5 of 10 units on one of two lines: the prescription is barely started, so
+    // it is still outstanding. This previously read 0, because the count only
+    // asked whether a prescription had ever been touched.
+    expect(stats.outstandingPrescriptions).toBe(1);
     expect(stats.todaysDispensings).toBe(1);
   });
 });
