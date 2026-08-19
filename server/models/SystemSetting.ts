@@ -26,7 +26,7 @@ export type SystemSettingDocument = HydratedDocument<ISystemSetting>;
 export const SETTINGS_ID = 'system';
 
 export const SETTINGS_DEFAULTS = {
-  hospitalName: 'Tulip General Hospital',
+  hospitalName: 'Clinexa',
   timezone: 'UTC',
   currency: 'USD',
   appointmentSlotMinutes: 30,

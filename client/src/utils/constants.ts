@@ -49,4 +49,4 @@ export const DASHBOARD_PATHS: Record<Role, string> = {
 };
 
 export const APP_NAME = 'HMS';
-export const HOSPITAL_NAME = 'Tulip General Hospital';
+export const HOSPITAL_NAME = 'Clinexa';
