@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
+import Footer from '../components/layout/Footer';
 import useUnreadNotifications from '../hooks/useUnreadNotifications';
 
 const COLLAPSE_KEY = 'hms.sidebar.collapsed';
@@ -90,6 +91,11 @@ export default function DashboardLayout() {
             <Outlet />
           </div>
         </main>
+
+        {/* Outside <main> and after it: `main` holds flex-1, so this rests on
+            the bottom of the viewport when a page is short and follows the
+            content when it is long — never a floating strip mid-screen. */}
+        <Footer />
       </div>
     </div>
   );
