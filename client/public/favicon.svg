@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Clinexa">
+  <title>Clinexa</title>
+  <!--
+    The app's own logo mark, not a new symbol: a white medical cross on the
+    brand-blue rounded square that already appears in the sidebar and on the
+    sign-in panel. A tab icon that differs from the logo people look at all
+    shift is a second brand to learn for no reason.
+
+    Drawn on a 32-unit grid so the shape is defined in whole pixels at 16px,
+    the size a browser tab actually renders. The cross fills ~65% of the
+    square: any smaller and the arms disappear at tab size, any larger and the
+    corner radius stops reading as a rounded square.
+  -->
+  <rect width="32" height="32" rx="7" fill="#2563eb" />
+
+  <!--
+    The 24-unit path from LogoMark, verbatim, scaled about its own centre so
+    the two can never drift apart: translate to origin, scale, recentre on 16.
+  -->
+  <g transform="translate(16 16) scale(1.16) translate(-12 -12)">
+    <path
+      fill="#ffffff"
+      d="M9 3a1 1 0 0 0-1 1v4H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h4v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4h4a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-4V4a1 1 0 0 0-1-1H9Z"
+    />
+  </g>
+</svg>
