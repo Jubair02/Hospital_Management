@@ -38,8 +38,8 @@ const toForm = (patient: Patient): ContactForm => ({
 function Row({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right">
+      <dt className="shrink-0 text-slate-500">{label}</dt>
+      <dd className="min-w-0 break-words text-right">
         {value ? (
           <span className="text-slate-800">{value}</span>
         ) : (

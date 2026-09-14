@@ -150,7 +150,7 @@ export default function Table<T extends { _id?: string; id?: string }>({
                   className="rounded-2xl border border-line bg-white p-4 shadow-sm"
                 >
                   {heading && (
-                    <div className="text-[0.9375rem] font-semibold text-slate-900">
+                    <div className="break-words text-[0.9375rem] font-semibold text-slate-900">
                       {cellOf(row, heading)}
                     </div>
                   )}
@@ -162,7 +162,7 @@ export default function Table<T extends { _id?: string; id?: string }>({
                           <dt className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-slate-500">
                             {col.header}
                           </dt>
-                          <dd className="mt-1 text-slate-700">{cellOf(row, col)}</dd>
+                          <dd className="mt-1 break-words text-slate-700">{cellOf(row, col)}</dd>
                         </div>
                       ))}
                     </dl>

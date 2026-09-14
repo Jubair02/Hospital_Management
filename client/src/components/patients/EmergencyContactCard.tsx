@@ -13,16 +13,16 @@ export default function EmergencyContactCard({ patient }: { patient: Patient }) 
     <Card title="Emergency contact">
       <dl className="space-y-3 text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-slate-500">Name</dt>
-          <dd className="text-right"><Value>{patient.emergencyContactName}</Value></dd>
+          <dt className="shrink-0 text-slate-500">Name</dt>
+          <dd className="min-w-0 break-words text-right"><Value>{patient.emergencyContactName}</Value></dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-slate-500">Phone</dt>
-          <dd className="text-right"><Value>{patient.emergencyContact}</Value></dd>
+          <dt className="shrink-0 text-slate-500">Phone</dt>
+          <dd className="min-w-0 break-words text-right"><Value>{patient.emergencyContact}</Value></dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-slate-500">Relationship</dt>
-          <dd className="text-right"><Value>{patient.emergencyContactRelation}</Value></dd>
+          <dt className="shrink-0 text-slate-500">Relationship</dt>
+          <dd className="min-w-0 break-words text-right"><Value>{patient.emergencyContactRelation}</Value></dd>
         </div>
       </dl>
     </Card>

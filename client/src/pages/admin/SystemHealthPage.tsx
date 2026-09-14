@@ -19,8 +19,8 @@ const statusTone = (status: string): BadgeTone => {
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-slate-100 py-2.5 last:border-0">
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="text-sm font-medium text-slate-800">{value}</dd>
+      <dt className="shrink-0 text-sm text-slate-500">{label}</dt>
+      <dd className="min-w-0 break-words text-right text-sm font-medium text-slate-800">{value}</dd>
     </div>
   );
 }
