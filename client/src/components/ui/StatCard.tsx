@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import Sparkline from '../charts/Sparkline';
 import { TONE_COLORS } from '../charts/chartTheme';
@@ -55,6 +56,8 @@ export interface StatCardProps {
   /** Makes the whole tile a link to the underlying records. */
   to?: string;
   className?: string;
+  /** Inline styles — used for per-tile stagger delays in a grid. */
+  style?: CSSProperties;
 }
 
 const formatMoney = (value: number): string =>
@@ -78,6 +81,7 @@ export default function StatCard({
   trend,
   to,
   className = '',
+  style,
 }: StatCardProps) {
   const loading = value === null || value === undefined;
   const numeric = typeof value === 'number' ? value : undefined;
@@ -168,6 +172,7 @@ export default function StatCard({
     return (
       <Link
         to={to}
+        style={style}
         className={`${shell} group transition duration-200 hover:border-brand-200 hover:shadow-md`}
       >
         {body}
@@ -182,5 +187,9 @@ export default function StatCard({
     );
   }
 
-  return <div className={shell}>{body}</div>;
+  return (
+    <div className={shell} style={style}>
+      {body}
+    </div>
+  );
 }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAnalyticsOverview } from '../../services/analyticsService';
 import { getErrorMessage } from '../../services/api';
 import type { AnalyticsOverview, ReportFilters, TimePoint } from '../../types';
+import { bucketDelta, seriesValues } from '../../utils/series';
 import Alert from '../../components/ui/Alert';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
@@ -26,22 +27,6 @@ const REPORT_LINKS = [
   { to: '/reports/billing', label: 'Billing' },
   { to: '/reports/inpatient', label: 'Inpatient' },
 ];
-
-const values = (points: TimePoint[]): number[] => points.map((point) => point.value);
-
-/**
- * Percentage change between the last two buckets of a series. Returns
- * `undefined` rather than a made-up figure when there is nothing to compare
- * against, or when the previous bucket was zero — "up from nothing" has no
- * meaningful percentage.
- */
-const bucketDelta = (points: TimePoint[]): number | undefined => {
-  if (points.length < 2) return undefined;
-  const latest = points[points.length - 1]!.value;
-  const previous = points[points.length - 2]!.value;
-  if (previous === 0) return undefined;
-  return ((latest - previous) / previous) * 100;
-};
 
 /**
  * Hospital-wide overview. The charts are grouped into demand (what was asked
@@ -97,7 +82,7 @@ export default function AnalyticsDashboardPage() {
     hint,
     icon,
     tone,
-    trend: points && values(points),
+    trend: points && seriesValues(points),
     delta: points && bucketDelta(points),
     deltaLabel: perBucket,
   });

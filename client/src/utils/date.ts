@@ -20,6 +20,14 @@ export const formatDate = (value: string | undefined): string => {
   return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+/** Clock time like "14:05". Empty string for invalid input. */
+export const formatTime = (value: string | undefined): string => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+};
+
 /** "3d 4h 12m" for a duration in seconds; drops units that are zero. */
 export const formatUptime = (seconds: number): string => {
   const days = Math.floor(seconds / 86400);
